@@ -139,6 +139,17 @@ func _show_lobby() -> void:
 	_clear_actions()
 	for count in [6, 7, 8, 9, 10]:
 		_button(str(count) + " " + _tr("لاعبين — أوفلاين", "joueurs — hors ligne", "players — offline"), func(): _start_offline(count))
+	_button(_tr("دليل الأدوار والقواعد", "Guide des rôles et des règles", "Roles and rules guide"), _show_role_guide)
+
+func _show_role_guide() -> void:
+	phase = "guide"
+	status_label.text = "📖 " + _tr("دليل القرية", "Guide du village", "Village guide")
+	var entries: Array[String] = []
+	for role in ["werewolf", "seer", "witch", "guard", "hunter", "villager"]:
+		entries.append("◆ " + _role_name(role) + "\n" + _role_description(role))
+	log_label.text = "\n\n".join(entries)
+	_clear_actions()
+	_button(_tr("العودة للقائمة", "Retour au menu", "Back to menu"), _show_lobby)
 
 func _start_offline(count: int) -> void:
 	player_count = count
@@ -312,7 +323,7 @@ func _finish_night() -> void:
 	for victim in deaths:
 		if players[victim].alive:
 			players[victim].alive = false
-			log_lines.append("☠ " + str(players[victim].name) + " " + _tr("قُتل أثناء الليل", "a été éliminé cette nuit", "was killed tonight"))
+			log_lines.append("☠ " + str(players[victim].name) + " " + _tr("قُتل أثناء الليل — دوره: ", "a été éliminé cette nuit — rôle : ", "was killed tonight — role: ") + _role_name(players[victim].role))
 			if players[victim].role == "hunter":
 				hunter_pending = victim
 	if hunter_pending >= 0:
@@ -331,7 +342,7 @@ func _hunter_revenge() -> void:
 		if i != hunter_pending and players[i].alive:
 			_button(str(players[i].name), func():
 				players[i].alive = false
-				log_lines.append("🎯 " + str(players[i].name) + " " + _tr("أُصيب برصاصة الصياد", "a été touché par le chasseur", "was shot by the hunter"))
+				log_lines.append("🎯 " + str(players[i].name) + " " + _tr("أُصيب برصاصة الصياد — دوره: ", "a été touché par le chasseur — rôle : ", "was shot by the hunter — role: ") + _role_name(players[i].role))
 				hunter_pending = -1
 				_check_winner()
 				if phase != "finished":
@@ -397,7 +408,7 @@ func _cast_vote(target: int) -> void:
 			leaders.append(int(key))
 	var eliminated := leaders[randi() % leaders.size()]
 	players[eliminated].alive = false
-	log_lines.append("⚖ " + str(players[eliminated].name) + " " + _tr("أُخرج بالتصويت", "a été éliminé par vote", "was voted out"))
+	log_lines.append("⚖ " + str(players[eliminated].name) + " " + _tr("أُخرج بالتصويت — دوره: ", "a été éliminé par vote — rôle : ", "was voted out — role: ") + _role_name(players[eliminated].role))
 	if players[eliminated].role == "hunter":
 		hunter_pending = eliminated
 		hunter_return_to_night = true
