@@ -351,7 +351,7 @@ func _hunter_revenge() -> void:
 						round_number += 1
 						_begin_night()
 					else:
-						_begin_day())
+						_begin_day()
 
 func _begin_day() -> void:
 	phase = "day"
