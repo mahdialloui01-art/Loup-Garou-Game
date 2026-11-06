@@ -30,6 +30,10 @@ var hunter_return_to_night := false
 var log_lines: Array[String] = []
 var player_count := 8
 var last_guard_target := -1
+var music_player: AudioStreamPlayer
+var music_enabled := true
+var music_volume := 0.55
+var settings := ConfigFile.new()
 
 var root_box: VBoxContainer
 var status_label: Label
@@ -39,7 +43,9 @@ var action_box: VBoxContainer
 func _ready() -> void:
 	randomize()
 	_build_shell()
-	_show_lobby()
+	_load_settings()
+	_setup_ambience()
+	_show_home()
 
 func _build_shell() -> void:
 	var bg := ColorRect.new()
@@ -144,8 +150,12 @@ func _change_language(index: int) -> void:
 	language = ["ar", "fr", "en"][index]
 	root_box.layout_direction = Control.LAYOUT_DIRECTION_RTL if language == "ar" else Control.LAYOUT_DIRECTION_LTR
 	match phase:
+		"home":
+			_show_home()
 		"lobby":
 			_show_lobby()
+		"settings":
+			_show_settings()
 		"guide":
 			_show_role_guide()
 		"reveal":
@@ -190,6 +200,103 @@ func _clear_actions() -> void:
 	for child in action_box.get_children():
 		child.queue_free()
 
+
+func _show_home() -> void:
+	phase = "home"
+	status_label.text = _tr("🌕  حين يكتمل القمر… تبدأ الحكاية", "🌕  Quand la lune se lève… le jeu commence", "🌕  When the moon rises… the story begins")
+	log_label.text = "                         ☾\n\n" + _tr("لــــوب غــــارو", "LOUP GAROU", "LOUP GAROU") + "\n" + _tr("أسطورة القرية المنسية", "La légende du village oublié", "LEGEND OF THE FORGOTTEN VILLAGE") + "\n\n" + _tr("في قرية يلفّها الضباب، تختبئ الذئاب بين الوجوه…\nهل تكتشف الحقيقة قبل فوات الأوان؟", "Dans un village noyé de brume, les loups se cachent parmi les villageois…\nSaurez-vous découvrir la vérité ?", "In a village wrapped in mist, wolves hide among familiar faces…\nCan you uncover the truth before dawn?") + "\n\n" + _tr("✦  تجربة غامرة • لعب فردي ضد الذكاء الاصطناعي  ✦", "✦  Ambiance immersive • Solo contre l’IA  ✦", "✦  Immersive atmosphere • Solo vs AI  ✦")
+	_clear_actions()
+	_button(_tr("▶  ادخل إلى القرية", "▶  Entrer dans le village", "▶  Enter the village"), _show_lobby)
+	_button(_tr("⚙  الإعدادات", "⚙  Paramètres", "⚙  Settings"), _show_settings)
+	_button(_tr("📖  دليل الأدوار", "📖  Guide des rôles", "📖  Role guide"), _show_role_guide)
+	var pulse := create_tween().set_loops()
+	pulse.tween_property(status_label, "modulate:a", 0.72, 1.4)
+	pulse.tween_property(status_label, "modulate:a", 1.0, 1.4)
+
+func _show_settings() -> void:
+	phase = "settings"
+	status_label.text = "⚙  " + _tr("إعدادات التجربة", "Paramètres", "Game settings")
+	log_label.text = _tr("اضبط أجواء القرية كما تحب. الموسيقى لحن غامض هادئ صُنع داخل اللعبة.", "Personnalisez l’ambiance du village. La musique est une nappe mystérieuse générée dans le jeu.", "Tune the village atmosphere. The eerie ambient soundtrack is generated in-game.")
+	_clear_actions()
+	var music_toggle := CheckButton.new()
+	music_toggle.text = _tr("الموسيقى والأجواء", "Musique et ambiance", "Ambient music")
+	music_toggle.button_pressed = music_enabled
+	music_toggle.add_theme_font_size_override("font_size", 17)
+	music_toggle.toggled.connect(_set_music_enabled)
+	action_box.add_child(music_toggle)
+	var volume_label := Label.new()
+	volume_label.text = _tr("مستوى الصوت", "Volume", "Music volume")
+	volume_label.add_theme_color_override("font_color", Color("#f0d39c"))
+	action_box.add_child(volume_label)
+	var volume := HSlider.new()
+	volume.min_value = 0.0
+	volume.max_value = 1.0
+	volume.step = 0.05
+	volume.value = music_volume
+	volume.custom_minimum_size = Vector2(0, 42)
+	volume.value_changed.connect(_set_music_volume)
+	action_box.add_child(volume)
+	_button(_tr("حفظ والعودة", "Enregistrer et revenir", "Save and return"), _show_home)
+
+func _load_settings() -> void:
+	settings.load("user://loup_settings.cfg")
+	music_enabled = bool(settings.get_value("audio", "music_enabled", true))
+	music_volume = float(settings.get_value("audio", "music_volume", 0.55))
+
+func _save_settings() -> void:
+	settings.set_value("audio", "music_enabled", music_enabled)
+	settings.set_value("audio", "music_volume", music_volume)
+	settings.save("user://loup_settings.cfg")
+
+func _setup_ambience() -> void:
+	music_player = AudioStreamPlayer.new()
+	music_player.name = "VillageAmbience"
+	add_child(music_player)
+	music_player.stream = _make_ambient_track()
+	music_player.volume_db = linear_to_db(maxf(music_volume, 0.001))
+	if music_enabled:
+		music_player.play()
+
+func _make_ambient_track() -> AudioStreamWAV:
+	var rate := 11025
+	var seconds := 12
+	var count := rate * seconds
+	var bytes := PackedByteArray()
+	bytes.resize(count * 2)
+	for i in range(count):
+		var t := float(i) / float(rate)
+		var fade := minf(1.0, minf(t / 1.2, (float(seconds) - t) / 1.2))
+		var drone := sin(TAU * 55.0 * t) * 0.12 + sin(TAU * 82.4 * t) * 0.055 + sin(TAU * 110.0 * t) * 0.035
+		var shimmer := sin(TAU * 220.0 * t + sin(TAU * 0.09 * t) * 2.0) * 0.018
+		var bell_env := pow(maxf(0.0, sin(TAU * 0.083 * t)), 10.0)
+		var bell := sin(TAU * 392.0 * t) * bell_env * 0.045
+		var sample := clampf((drone + shimmer + bell) * fade, -0.95, 0.95)
+		bytes.encode_s16(i * 2, int(sample * 32767.0))
+	var wav := AudioStreamWAV.new()
+	wav.format = AudioStreamWAV.FORMAT_16_BITS
+	wav.mix_rate = rate
+	wav.stereo = false
+	wav.data = bytes
+	wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	wav.loop_end = count
+	return wav
+
+func _set_music_enabled(enabled: bool) -> void:
+	music_enabled = enabled
+	if enabled:
+		if music_player and not music_player.playing:
+			music_player.play()
+	else:
+		if music_player:
+			music_player.stop()
+	_save_settings()
+
+func _set_music_volume(value: float) -> void:
+	music_volume = value
+	if music_player:
+		music_player.volume_db = linear_to_db(maxf(value, 0.001))
+	_save_settings()
+
 func _show_lobby() -> void:
 	phase = "lobby"
 	status_label.text = _tr("قرية غامضة تنتظر شجاعتك", "Un village mystérieux vous attend", "A mysterious village awaits you")
@@ -198,6 +305,7 @@ func _show_lobby() -> void:
 	for count in [6, 7, 8, 9, 10]:
 		_button(str(count) + " " + _tr("لاعبين — أوفلاين", "joueurs — hors ligne", "players — offline"), func(): _start_offline(count))
 	_button(_tr("دليل الأدوار والقواعد", "Guide des rôles et des règles", "Roles and rules guide"), _show_role_guide)
+	_button(_tr("العودة للشاشة الرئيسية", "Retour à l’accueil", "Back to title screen"), _show_home)
 
 func _show_role_guide() -> void:
 	phase = "guide"
@@ -207,7 +315,7 @@ func _show_role_guide() -> void:
 		entries.append("◆ " + _role_name(role) + "\n" + _role_description(role))
 	log_label.text = "\n\n".join(PackedStringArray(entries))
 	_clear_actions()
-	_button(_tr("العودة للقائمة", "Retour au menu", "Back to menu"), _show_lobby)
+	_button(_tr("العودة للشاشة الرئيسية", "Retour à l’accueil", "Back to title screen"), _show_home)
 
 func _start_offline(count: int) -> void:
 	player_count = count
