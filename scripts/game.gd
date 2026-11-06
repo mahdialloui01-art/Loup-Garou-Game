@@ -158,7 +158,29 @@ func _start_offline(count: int) -> void:
 	last_guard_target = -1
 	log_lines.clear()
 	log_lines.append(_tr("بدأت المباراة — دورك السري: ", "La partie commence — votre rôle secret : ", "The match begins — your secret role: ") + _role_name(players[0].role))
-	_begin_night()
+	_show_role_reveal()
+
+func _role_description(role: String) -> String:
+	match role:
+		"werewolf":
+			return _tr("استيقظ كل ليلة واختر لاعباً لإقصائه مع فريق الذئاب.", "Chaque nuit, choisissez une victime avec les loups.", "Each night, choose a victim with the wolves.")
+		"seer":
+			return _tr("افحص لاعباً كل ليلة لتعرف هل هو مستذئب أم لا.", "Chaque nuit, découvrez si un joueur est un loup-garou.", "Each night, learn whether one player is a werewolf.")
+		"witch":
+			return _tr("تملك جرعة شفاء واحدة وجرعة سم واحدة طوال المباراة.", "Vous avez une potion de soin et une potion de poison pour toute la partie.", "You have one healing potion and one poison potion for the whole match.")
+		"guard":
+			return _tr("احمِ لاعباً كل ليلة. لا يمكنك حماية نفس اللاعب ليلتين متتاليتين.", "Protégez un joueur chaque nuit. Pas deux nuits de suite la même personne.", "Protect one player each night. You cannot protect the same player on consecutive nights.")
+		"hunter":
+			return _tr("إذا أُقصيت، اختر لاعباً واحداً ليخرج معك.", "Si vous êtes éliminé, choisissez un joueur à emporter.", "If eliminated, choose one player to take down with you.")
+		_:
+			return _tr("راقب تصرفات الآخرين، ناقشهم وصوّت لإخراج المستذئبين.", "Observez les autres, débattez et votez pour éliminer les loups.", "Watch the others, discuss and vote to eliminate the werewolves.")
+
+func _show_role_reveal() -> void:
+	phase = "reveal"
+	_clear_actions()
+	status_label.text = "🃏 " + _tr("دورك السري", "Votre rôle secret", "Your secret role")
+	log_label.text = "━━━━━━━━━━━━━━━━━━━━\n" + _role_name(players[0].role) + "\n\n" + _role_description(players[0].role) + "\n\n" + _tr("لا تكشف دورك للآخرين!", "Ne révélez pas votre rôle !", "Keep your role secret!") + "\n━━━━━━━━━━━━━━━━━━━━"
+	_button(_tr("ابدأ الليلة الأولى", "Commencer la première nuit", "Begin the first night"), _begin_night)
 
 func _role_name(role: String) -> String:
 	return str(ROLE_DATA[role][language])
@@ -233,6 +255,8 @@ func _run_ai_night() -> void:
 
 func _show_targets(kind: String) -> void:
 	_clear_actions()
+	if kind == "guard" and players[0].alive:
+		_button(_tr("احمِ نفسك", "Se protéger", "Protect yourself"), func(): _night_target("guard", 0))
 	for i in range(players.size()):
 		if i == 0 or not players[i].alive:
 			continue
