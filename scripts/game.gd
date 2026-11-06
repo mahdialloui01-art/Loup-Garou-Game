@@ -2,11 +2,18 @@ extends Control
 
 const ROLE_DATA := {
 	"werewolf": {"ar": "مستذئب", "fr": "Loup-garou", "en": "Werewolf", "team": "wolves"},
-	"seer": {"ar": "العرافة", "fr": "Voyante", "en": "Seer", "team": "village"},
+	"seer": {"ar": "العراف", "fr": "Voyant", "en": "Seer", "team": "village"},
 	"witch": {"ar": "الساحرة", "fr": "Sorcière", "en": "Witch", "team": "village"},
 	"hunter": {"ar": "الصياد", "fr": "Chasseur", "en": "Hunter", "team": "village"},
 	"guard": {"ar": "الحارس", "fr": "Garde", "en": "Guard", "team": "village"},
 	"villager": {"ar": "قروي", "fr": "Villageois", "en": "Villager", "team": "village"}
+}
+const ROLE_COUNTS := {
+	6: ["werewolf", "seer", "witch", "hunter", "villager", "villager"],
+	7: ["werewolf", "werewolf", "seer", "witch", "guard", "hunter", "villager"],
+	8: ["werewolf", "werewolf", "seer", "witch", "guard", "hunter", "villager", "villager"],
+	9: ["werewolf", "werewolf", "seer", "witch", "guard", "hunter", "villager", "villager", "villager"],
+	10: ["werewolf", "werewolf", "werewolf", "seer", "witch", "guard", "hunter", "villager", "villager", "villager"]
 }
 
 var players: Array[Dictionary] = []
@@ -14,7 +21,13 @@ var language := "ar"
 var phase := "lobby"
 var round_number := 0
 var selected_player := -1
+var protected_player := -1
+var attacked_player := -1
+var witch_heal_used := true
+var witch_poison_used := true
+var hunter_pending := -1
 var log_lines: Array[String] = []
+var player_count := 8
 
 var root_box: VBoxContainer
 var status_label: Label
@@ -22,6 +35,7 @@ var log_label: Label
 var action_box: VBoxContainer
 
 func _ready() -> void:
+	randomize()
 	_build_shell()
 	_show_lobby()
 
@@ -30,7 +44,6 @@ func _build_shell() -> void:
 	bg.color = Color("#101522")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
-
 	root_box = VBoxContainer.new()
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root_box.add_theme_constant_override("separation", 14)
@@ -39,7 +52,6 @@ func _build_shell() -> void:
 	root_box.add_theme_constant_override("margin_top", 28)
 	root_box.add_theme_constant_override("margin_bottom", 24)
 	add_child(root_box)
-
 	var header := HBoxContainer.new()
 	root_box.add_child(header)
 	var title := Label.new()
@@ -53,12 +65,10 @@ func _build_shell() -> void:
 	lang.add_item("English", 2)
 	lang.item_selected.connect(_change_language)
 	header.add_child(lang)
-
 	status_label = Label.new()
 	status_label.add_theme_font_size_override("font_size", 22)
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root_box.add_child(status_label)
-
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	root_box.add_child(scroll)
@@ -67,7 +77,6 @@ func _build_shell() -> void:
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	log_label.add_theme_font_size_override("font_size", 18)
 	scroll.add_child(log_label)
-
 	action_box = VBoxContainer.new()
 	action_box.add_theme_constant_override("separation", 10)
 	root_box.add_child(action_box)
@@ -100,15 +109,17 @@ func _clear_actions() -> void:
 func _show_lobby() -> void:
 	phase = "lobby"
 	status_label.text = _tr("قرية غامضة تنتظر شجاعتك", "Un village mystérieux vous attend", "A mysterious village awaits you")
-	log_label.text = _tr("العب محلياً دون إنترنت ضد شخصيات ذكية. النسخة الأولى تركز على قواعد اللعب الأساسية.", "Jouez hors ligne contre des personnages IA. Cette première version pose les bases du jeu.", "Play offline against AI characters. This first build establishes the core game.")
+	log_label.text = _tr("اختر عدد المقاعد. ستلعب بشخصيتك ضد سكان القرية الذين يتحكم بهم الذكاء الاصطناعي.", "Choisissez le nombre de joueurs. Affrontez les habitants contrôlés par l'IA.", "Choose the player count and face AI-controlled villagers.")
 	_clear_actions()
-	_button(_tr("ابدأ مباراة أوفلاين • 6 لاعبين", "Lancer une partie hors ligne • 6 joueurs", "Start offline match • 6 players"), _start_offline)
+	for count in [6, 7, 8, 9, 10]:
+		_button(str(count) + " " + _tr("لاعبين — أوفلاين", "joueurs — hors ligne", "players — offline"), func(): _start_offline(count))
 
-func _start_offline() -> void:
+func _start_offline(count: int) -> void:
+	player_count = count
 	players.clear()
-	var roles := ["werewolf", "seer", "witch", "hunter", "villager", "villager"]
+	var roles: Array = ROLE_COUNTS[count].duplicate()
 	roles.shuffle()
-	for i in range(6):
+	for i in range(count):
 		players.append({
 			"name": _tr("أنت", "Vous", "You") if i == 0 else _tr("لاعب", "Joueur", "Player") + " " + str(i + 1),
 			"role": roles[i],
@@ -116,60 +127,156 @@ func _start_offline() -> void:
 			"human": i == 0
 		})
 	round_number = 1
+	witch_heal_used = false
+	witch_poison_used = false
 	log_lines.clear()
-	log_lines.append(_tr("بدأت المباراة. دورك السري: ", "La partie commence. Votre rôle secret : ", "The match begins. Your secret role: ") + _role_name(players[0].role))
+	log_lines.append(_tr("بدأت المباراة — دورك السري: ", "La partie commence — votre rôle secret : ", "The match begins — your secret role: ") + _role_name(players[0].role))
 	_begin_night()
 
 func _role_name(role: String) -> String:
-	var data: Dictionary = ROLE_DATA[role]
-	return str(data[language])
+	return str(ROLE_DATA[role][language])
+
+func _alive_indices() -> Array[int]:
+	var result: Array[int] = []
+	for i in range(players.size()):
+		if players[i].alive:
+			result.append(i)
+	return result
 
 func _begin_night() -> void:
 	phase = "night"
 	selected_player = -1
+	protected_player = -1
+	attacked_player = -1
+	_run_ai_night()
 	_refresh()
 	_clear_actions()
-	status_label.text = "🌑 " + _tr("الليل حلّ على القرية", "La nuit tombe sur le village", "Night falls over the village")
-	if players[0].role == "werewolf":
-		_button(_tr("اختر ضحية", "Choisir une victime", "Choose a victim"), _show_night_targets)
-	elif players[0].role == "seer":
-		_button(_tr("اكشف هوية لاعب", "Découvrir un joueur", "Inspect a player"), _show_seer_targets)
+	status_label.text = "🌑 " + _tr("الليلة رقم ", "Nuit numéro ", "Night ") + str(round_number)
+	var role: String = players[0].role
+	if role == "werewolf":
+		status_label.text += " — " + _tr("فريق الذئاب: اختر ضحية", "Choisissez une victime", "Choose a victim")
+		_show_targets("wolf")
+	elif role == "seer":
+		status_label.text += " — " + _tr("اكشف حقيقة لاعب", "Inspectez un joueur", "Inspect a player")
+		_show_targets("seer")
+	elif role == "guard":
+		status_label.text += " — " + _tr("احمِ لاعباً هذه الليلة", "Protégez un joueur", "Protect a player")
+		_show_targets("guard")
+	elif role == "witch":
+		_witch_choices()
 	else:
-		_button(_tr("انتظر طلوع النهار", "Attendre le lever du jour", "Wait for sunrise"), _resolve_night)
+		_button(_tr("انتظر طلوع النهار", "Attendre le matin", "Wait for sunrise"), _finish_night)
 
-func _show_night_targets() -> void:
-	_clear_actions()
+func _run_ai_night() -> void:
+	var wolf_targets: Array[int] = []
 	for i in range(1, players.size()):
-		if players[i].alive:
-			_button(str(players[i].name), func(): _choose_wolf_target(i))
-
-func _choose_wolf_target(index: int) -> void:
-	selected_player = index
-	_resolve_night()
-
-func _show_seer_targets() -> void:
-	_clear_actions()
-	for i in range(1, players.size()):
-		if players[i].alive:
-			_button(str(players[i].name), func(): _seer_check(i))
-
-func _seer_check(index: int) -> void:
-	var result := _tr("من فريق الذئاب", "fait partie des loups", "is on the wolf team") if players[index].role == "werewolf" else _tr("من أهل القرية", "fait partie du village", "belongs to the village")
-	log_lines.append(str(players[index].name) + " " + result)
-	_resolve_night()
-
-func _resolve_night() -> void:
-	if selected_player < 0:
-		var candidates: Array[int] = []
+		if players[i].alive and players[i].role == "werewolf":
+			for candidate in range(players.size()):
+				if candidate != i and players[candidate].alive and players[candidate].role != "werewolf":
+					wolf_targets.append(candidate)
+	if not wolf_targets.is_empty():
+		attacked_player = wolf_targets[randi() % wolf_targets.size()]
+	if players[0].role != "guard":
+		var guards := []
 		for i in range(1, players.size()):
-			if players[i].alive:
-				candidates.append(i)
-		if not candidates.is_empty():
-			selected_player = candidates[randi() % candidates.size()]
-	if selected_player >= 0:
-		players[selected_player].alive = false
-		log_lines.append("☠ " + str(players[selected_player].name) + " " + _tr("خرج من اللعبة ليلاً", "a été éliminé cette nuit", "was eliminated during the night"))
-	_begin_day()
+			if players[i].alive and players[i].role == "guard":
+				guards.append(i)
+		if not guards.is_empty():
+			var choices := _alive_indices()
+			if choices.size() > 1:
+				protected_player = choices[randi() % choices.size()]
+	if players[0].role != "witch":
+		var witches := []
+		for i in range(1, players.size()):
+			if players[i].alive and players[i].role == "witch":
+				witches.append(i)
+		if not witches.is_empty() and attacked_player >= 0 and not witch_heal_used:
+			if randf() < 0.55:
+				attacked_player = -1
+				witch_heal_used = true
+		if not witches.is_empty() and not witch_poison_used and randf() < 0.12:
+			var targets := _alive_indices()
+			targets.erase(0)
+			if not targets.is_empty():
+				selected_player = targets[randi() % targets.size()]
+				witch_poison_used = true
+
+func _show_targets(kind: String) -> void:
+	_clear_actions()
+	for i in range(players.size()):
+		if i == 0 or not players[i].alive:
+			continue
+		if kind == "wolf" and players[i].role == "werewolf":
+			continue
+		_button(str(players[i].name), func(): _night_target(kind, i))
+	_button(_tr("رجوع", "Retour", "Back"), _begin_night)
+
+func _night_target(kind: String, index: int) -> void:
+	match kind:
+		"wolf":
+			attacked_player = index
+			_finish_night()
+		"seer":
+			var result := _tr("مستذئب", "est un loup-garou", "is a werewolf") if players[index].role == "werewolf" else _tr("ليس مستذئباً", "n'est pas un loup-garou", "is not a werewolf")
+			log_lines.append("🔮 " + str(players[index].name) + " " + result)
+			_finish_night()
+		"guard":
+			protected_player = index
+			_finish_night()
+
+func _witch_choices() -> void:
+	_clear_actions()
+	status_label.text = "🧪 " + _tr("الساحرة — لديك جرعتان طوال المباراة", "Sorcière — deux potions pour toute la partie", "Witch — two potions for the whole match")
+	if attacked_player >= 0 and not witch_heal_used:
+		_button(_tr("استخدم جرعة الشفاء", "Utiliser la potion de soin", "Use healing potion"), func():
+			witch_heal_used = true
+			attacked_player = -1
+			_finish_night())
+	if not witch_poison_used:
+		_button(_tr("استخدم السم", "Utiliser le poison", "Use poison"), _show_poison_targets)
+	_button(_tr("احتفظ بالجرعات", "Garder les potions", "Save potions"), _finish_night)
+
+func _show_poison_targets() -> void:
+	_clear_actions()
+	for i in range(1, players.size()):
+		if players[i].alive:
+			_button(str(players[i].name), func():
+				selected_player = i
+				witch_poison_used = true
+				_finish_night())
+
+func _finish_night() -> void:
+	var deaths: Array[int] = []
+	if attacked_player >= 0 and attacked_player != protected_player:
+		deaths.append(attacked_player)
+	if selected_player >= 0 and selected_player != 0 and not deaths.has(selected_player):
+		deaths.append(selected_player)
+	for victim in deaths:
+		if players[victim].alive:
+			players[victim].alive = false
+			log_lines.append("☠ " + str(players[victim].name) + " " + _tr("قُتل أثناء الليل", "a été éliminé cette nuit", "was killed tonight"))
+			if players[victim].role == "hunter":
+				hunter_pending = victim
+	if hunter_pending >= 0:
+		_hunter_revenge()
+		return
+	_check_winner()
+	if phase != "finished":
+		_begin_day()
+
+func _hunter_revenge() -> void:
+	phase = "hunter"
+	_clear_actions()
+	status_label.text = "🎯 " + _tr("الصياد قبل رحيله يختار من يأخذه معه", "Le chasseur choisit une dernière cible", "The hunter chooses one final target")
+	for i in range(players.size()):
+		if i != hunter_pending and players[i].alive:
+			_button(str(players[i].name), func():
+				players[i].alive = false
+				log_lines.append("🎯 " + str(players[i].name) + " " + _tr("أُصيب برصاصة الصياد", "a été touché par le chasseur", "was shot by the hunter"))
+				hunter_pending = -1
+				_check_winner()
+				if phase != "finished":
+					_begin_day())
 
 func _begin_day() -> void:
 	phase = "day"
@@ -185,26 +292,53 @@ func _show_vote_targets() -> void:
 			_button(_tr("صوّت ضد ", "Voter contre ", "Vote against ") + str(players[i].name), func(): _cast_vote(i))
 
 func _cast_vote(target: int) -> void:
-	players[target].alive = false
-	log_lines.append("⚖ " + str(players[target].name) + " " + _tr("طُرد بالتصويت", "a été éliminé par vote", "was voted out"))
-	if _check_winner():
+	var votes: Dictionary = {target: 1}
+	for i in range(1, players.size()):
+		if not players[i].alive:
+			continue
+		var options: Array[int] = []
+		for j in range(players.size()):
+			if j != i and players[j].alive:
+				options.append(j)
+		if options.is_empty():
+			continue
+		var choice := options[randi() % options.size()]
+		if players[i].role == "werewolf":
+			for option in options:
+				if players[option].role != "werewolf":
+					choice = option
+					break
+		votes[choice] = int(votes.get(choice, 0)) + 1
+	var eliminated := target
+	var highest := -1
+	for key in votes:
+		if int(votes[key]) > highest:
+			highest = int(votes[key])
+			eliminated = int(key)
+	players[eliminated].alive = false
+	log_lines.append("⚖ " + str(players[eliminated].name) + " " + _tr("أُخرج بالتصويت", "a été éliminé par vote", "was voted out"))
+	if players[eliminated].role == "hunter":
+		hunter_pending = eliminated
+		_hunter_revenge()
 		return
-	round_number += 1
-	_begin_night()
+	_check_winner()
+	if phase != "finished":
+		round_number += 1
+		_begin_night()
 
 func _check_winner() -> bool:
 	var wolves := 0
-	var villagers := 0
+	var village := 0
 	for p in players:
 		if p.alive:
 			if p.role == "werewolf":
 				wolves += 1
 			else:
-				villagers += 1
+				village += 1
 	if wolves == 0:
 		phase = "finished"
 		status_label.text = "🏆 " + _tr("فاز أهل القرية!", "Le village a gagné !", "The village wins!")
-	elif wolves >= villagers:
+	elif wolves >= village:
 		phase = "finished"
 		status_label.text = "🐺 " + _tr("فاز المستذئبون!", "Les loups ont gagné !", "The werewolves win!")
 	else:
