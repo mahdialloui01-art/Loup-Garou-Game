@@ -147,7 +147,7 @@ func _show_role_guide() -> void:
 	var entries: Array[String] = []
 	for role in ["werewolf", "seer", "witch", "guard", "hunter", "villager"]:
 		entries.append("◆ " + _role_name(role) + "\n" + _role_description(role))
-	log_label.text = "\n\n".join(entries)
+	log_label.text = "\n\n".join(PackedStringArray(entries))
 	_clear_actions()
 	_button(_tr("العودة للقائمة", "Retour au menu", "Back to menu"), _show_lobby)
 
@@ -448,4 +448,4 @@ func _refresh() -> void:
 	for p in players:
 		var marker := "🟢 " if p.alive else "⚫ "
 		lines.append(marker + str(p.name) + ("  ★" if p.human else "") + ("" if p.alive else " — " + _tr("مُقصى", "éliminé", "eliminated")))
-	log_label.text = "\n".join(lines)
+	log_label.text = "\n".join(PackedStringArray(lines))
