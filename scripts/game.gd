@@ -34,6 +34,9 @@ var music_player: AudioStreamPlayer
 var music_enabled := true
 var music_volume := 0.55
 var settings := ConfigFile.new()
+var discussion_order: Array[int] = []
+var discussion_index := 0
+var discussion_accusations: Dictionary = {}
 
 var root_box: VBoxContainer
 var status_label: Label
@@ -573,14 +576,101 @@ func _hunter_revenge() -> void:
 		_check_winner()
 
 func _begin_day() -> void:
-	phase = "day"
+	phase = "discussion"
 	_refresh()
+	_begin_discussion()
+
+func _begin_discussion() -> void:
+	phase = "discussion"
+	discussion_order = _alive_indices()
+	discussion_order.shuffle()
+	discussion_index = 0
+	discussion_accusations.clear()
+	status_label.text = "☀️ " + _tr("مجلس القرية — لكل شخص كلمة", "Conseil du village — chacun a la parole", "Village council — everyone gets a say")
+	log_lines.append("━━━━━━━━ " + _tr("بدأ نقاش النهار", "Début du débat", "Day discussion begins") + " ━━━━━━━━")
+	_show_next_discussion_speaker()
+
+func _show_next_discussion_speaker() -> void:
 	_clear_actions()
-	status_label.text = "☀️ " + _tr("الصباح — ناقشوا وصوّتوا", "Le jour — débattez et votez", "Day — discuss and vote")
-	if players[0].alive:
-		_button(_tr("ابدأ التصويت", "Lancer le vote", "Start voting"), _show_vote_targets)
+	while discussion_index < discussion_order.size():
+		var speaker := discussion_order[discussion_index]
+		discussion_index += 1
+		if not players[speaker].alive:
+			continue
+		if speaker == 0:
+			_show_human_opinion()
+			return
+		var target := _choose_discussion_target(speaker)
+		if target >= 0:
+			discussion_accusations[speaker] = target
+		var statement := _make_ai_statement(speaker, target)
+		log_lines.append("💬 " + str(players[speaker].name) + ": " + statement)
+		_refresh()
+		status_label.text = "🗣 " + str(players[speaker].name) + " " + _tr("يتحدث", "prend la parole", "is speaking")
+		_button(_tr("استمع للمتحدث التالي", "Écouter le suivant", "Hear next speaker"), _show_next_discussion_speaker)
+		return
+	_finish_discussion()
+
+func _choose_discussion_target(speaker: int) -> int:
+	var choices: Array[int] = []
+	for i in range(players.size()):
+		if i != speaker and players[i].alive:
+			choices.append(i)
+	if choices.is_empty():
+		return -1
+	return choices[randi() % choices.size()]
+
+func _make_ai_statement(speaker: int, target: int) -> String:
+	if target < 0:
+		return _tr("لا أملك أدلة كافية… أريد سماع الجميع قبل الحكم.", "Je n’ai pas assez d’indices… je veux entendre tout le monde.", "I don't have enough clues… I want to hear everyone before judging.")
+	var style := randi() % 4
+	match style:
+		0:
+			return _tr("تصرفات ", "Le comportement de ", "") + str(players[target].name) + _tr(" تثير شكوكي. أريد تفسيراً!", " me semble suspect. Je veux des explications !", " seems suspicious. I want an explanation!")
+		1:
+			return _tr("لا تتسرعوا في اتهام ", "Ne vous précipitez pas contre ", "Let's not rush to accuse ") + str(players[target].name) + _tr("، ربما عنده ما يبرر موقفه.", ", il a peut-être une explication.", "; they may have an explanation.")
+		2:
+			return _tr("أنا أراقب ", "Je garde un œil sur ", "I'm keeping an eye on ") + str(players[target].name) + _tr("، كلامه يحتاج توضيحاً.", " ; ses paroles demandent des explications.", "; their words need explaining.")
+		_:
+			return _tr("عندي إحساس أن ", "J’ai le sentiment que ", "I have a feeling that ") + str(players[target].name) + _tr(" يخفي شيئاً، لكن لست متأكداً.", " cache quelque chose, mais je n’en suis pas sûr.", " is hiding something, but I'm not certain.")
+
+func _show_human_opinion() -> void:
+	_clear_actions()
+	status_label.text = "🗣 " + _tr("دورك في النقاش — عبّر عن رأيك", "Votre tour — donnez votre avis", "Your turn — share your opinion")
+	log_label.text = _tr("القرية تسمعك الآن. اختر لاعباً وقل رأيك فيه قبل التصويت.", "Le village vous écoute. Choisissez un joueur et exprimez votre avis avant le vote.", "The village is listening. Choose a player and share your view before voting.") + "\n\n" + log_label.text
+	for i in range(1, players.size()):
+		if not players[i].alive:
+			continue
+		var target := i
+		_button(_tr("أشك في ", "Je soupçonne ", "I suspect ") + str(players[i].name), func(): _submit_human_opinion("suspect", target))
+		_button(_tr("أدافع عن ", "Je défends ", "I defend ") + str(players[i].name), func(): _submit_human_opinion("defend", target))
+	_button(_tr("لم أحسم رأيي بعد", "Je ne suis pas encore décidé", "I'm still undecided"), func(): _submit_human_opinion("unsure", -1))
+
+func _submit_human_opinion(kind: String, target: int) -> void:
+	var statement := ""
+	if kind == "suspect" and target >= 0:
+		statement = _tr("أشك في ", "Je soupçonne ", "I suspect ") + str(players[target].name) + _tr(" وأريد منه تفسيراً.", " et je veux des explications.", " and want an explanation.")
+		discussion_accusations[0] = target
+	elif kind == "defend" and target >= 0:
+		statement = _tr("أدافع عن ", "Je défends ", "I defend ") + str(players[target].name) + _tr("، لا أرى دليلاً كافياً ضده.", " ; je ne vois pas assez de preuves contre lui.", "; I don't see enough evidence against them.")
+		discussion_accusations.erase(0)
 	else:
-		status_label.text += " — " + _tr("أنت متفرج بعد خروجك", "Vous observez après votre élimination", "You are spectating after elimination")
+		statement = _tr("لم أحسم رأيي بعد، أريد سماع المزيد من الجميع.", "Je ne suis pas encore décidé, je veux entendre les autres.", "I'm still undecided; I want to hear more from everyone.")
+		discussion_accusations.erase(0)
+	log_lines.append("💬 " + _tr("أنت", "Vous", "You") + ": " + statement)
+	_refresh()
+	_show_next_discussion_speaker()
+
+func _finish_discussion() -> void:
+	phase = "day"
+	_clear_actions()
+	status_label.text = "⚖️ " + _tr("انتهى النقاش — حان وقت التصويت", "Débat terminé — place au vote", "Discussion over — time to vote")
+	log_lines.append("━━━━━━━━ " + _tr("التصويت", "Vote", "Voting") + " ━━━━━━━━")
+	_refresh()
+	if players[0].alive:
+		_button(_tr("اختر من تريد إخراجه", "Choisir qui éliminer", "Choose who to eliminate"), _show_vote_targets)
+	else:
+		status_label.text += " — " + _tr("أنت متفرج", "Vous observez", "You are spectating")
 		_button(_tr("تابع تصويت القرية", "Continuer le vote du village", "Continue village vote"), _cast_spectator_vote)
 
 func _show_vote_targets() -> void:
@@ -606,6 +696,10 @@ func _cast_vote(target: int) -> void:
 		if options.is_empty():
 			continue
 		var choice := options[randi() % options.size()]
+		if discussion_accusations.has(i):
+			var stated_target := int(discussion_accusations[i])
+			if options.has(stated_target) and randf() < 0.72:
+				choice = stated_target
 		if players[i].role == "werewolf":
 			var village_options: Array[int] = []
 			for option in options:
