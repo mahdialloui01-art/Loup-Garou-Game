@@ -7,9 +7,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   headless-smoke-test:
-    runs-on: ubuntu-latest
+    # Pin a known hosted image instead of ubuntu-latest to avoid image-rollout changes.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - name: Check out project
         uses: actions/checkout@v4
@@ -19,6 +28,9 @@ jobs:
         with:
           version: 4.4.1
           use-dotnet: false
+
+      - name: Verify Godot version
+        run: godot --version
 
       - name: Import project resources
         run: godot --headless --editor --path . --quit
