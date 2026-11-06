@@ -29,6 +29,7 @@ var hunter_pending := -1
 var hunter_return_to_night := false
 var log_lines: Array[String] = []
 var player_count := 8
+var last_guard_target := -1
 
 var root_box: VBoxContainer
 var status_label: Label
@@ -45,19 +46,22 @@ func _build_shell() -> void:
 	bg.color = Color("#101522")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	var frame := MarginContainer.new()
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_constant_override("margin_left", 22)
+	frame.add_theme_constant_override("margin_right", 22)
+	frame.add_theme_constant_override("margin_top", 24)
+	frame.add_theme_constant_override("margin_bottom", 22)
+	add_child(frame)
 	root_box = VBoxContainer.new()
-	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root_box.add_theme_constant_override("separation", 14)
-	root_box.add_theme_constant_override("margin_left", 24)
-	root_box.add_theme_constant_override("margin_right", 24)
-	root_box.add_theme_constant_override("margin_top", 28)
-	root_box.add_theme_constant_override("margin_bottom", 24)
-	add_child(root_box)
+	frame.add_child(root_box)
 	var header := HBoxContainer.new()
 	root_box.add_child(header)
 	var title := Label.new()
 	title.text = "🌙  LOUP GAROU"
 	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", Color("#f4c96b"))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 	var lang := OptionButton.new()
@@ -68,6 +72,8 @@ func _build_shell() -> void:
 	header.add_child(lang)
 	status_label = Label.new()
 	status_label.add_theme_font_size_override("font_size", 22)
+	status_label.add_theme_color_override("font_color", Color("#f4c96b"))
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	root_box.add_child(status_label)
 	var scroll := ScrollContainer.new()
@@ -76,7 +82,8 @@ func _build_shell() -> void:
 	log_label = Label.new()
 	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.add_theme_font_size_override("font_size", 18)
+	log_label.add_theme_font_size_override("font_size", 17)
+	log_label.add_theme_color_override("font_color", Color("#e5eaf4"))
 	scroll.add_child(log_label)
 	action_box = VBoxContainer.new()
 	action_box.add_theme_constant_override("separation", 10)
@@ -99,7 +106,25 @@ func _button(caption: String, callback: Callable) -> void:
 	var b := Button.new()
 	b.text = caption
 	b.custom_minimum_size = Vector2(0, 58)
-	b.add_theme_font_size_override("font_size", 19)
+	b.add_theme_font_size_override("font_size", 18)
+	b.add_theme_color_override("font_color", Color("#f4f6fb"))
+	b.add_theme_color_override("font_hover_color", Color("#101522"))
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color("#27344a")
+	normal.corner_radius_top_left = 12
+	normal.corner_radius_top_right = 12
+	normal.corner_radius_bottom_left = 12
+	normal.corner_radius_bottom_right = 12
+	normal.border_width_left = 1
+	normal.border_width_right = 1
+	normal.border_width_top = 1
+	normal.border_width_bottom = 1
+	normal.border_color = Color("#465875")
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = Color("#f4c96b")
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", hover)
 	b.pressed.connect(callback)
 	action_box.add_child(b)
 
@@ -130,6 +155,7 @@ func _start_offline(count: int) -> void:
 	round_number = 1
 	witch_heal_used = false
 	witch_poison_used = false
+	last_guard_target = -1
 	log_lines.clear()
 	log_lines.append(_tr("بدأت المباراة — دورك السري: ", "La partie commence — votre rôle secret : ", "The match begins — your secret role: ") + _role_name(players[0].role))
 	_begin_night()
@@ -185,7 +211,10 @@ func _run_ai_night() -> void:
 		if not guards.is_empty():
 			var choices := _alive_indices()
 			if choices.size() > 1:
-				protected_player = choices[randi() % choices.size()]
+				choices.erase(last_guard_target)
+				if not choices.is_empty():
+					protected_player = choices[randi() % choices.size()]
+					last_guard_target = protected_player
 	if players[0].role != "witch":
 		var witches := []
 		for i in range(1, players.size()):
@@ -210,7 +239,6 @@ func _show_targets(kind: String) -> void:
 		if kind == "wolf" and players[i].role == "werewolf":
 			continue
 		_button(str(players[i].name), func(): _night_target(kind, i))
-	_button(_tr("رجوع", "Retour", "Back"), _begin_night)
 
 func _night_target(kind: String, index: int) -> void:
 	match kind:
@@ -222,7 +250,12 @@ func _night_target(kind: String, index: int) -> void:
 			log_lines.append("🔮 " + str(players[index].name) + " " + result)
 			_finish_night()
 		"guard":
+			if index == last_guard_target:
+				log_lines.append(_tr("لا يمكنك حماية نفس اللاعب ليلتين متتاليتين.", "Vous ne pouvez pas protéger la même personne deux nuits de suite.", "You cannot protect the same player two nights in a row."))
+				_show_targets("guard")
+				return
 			protected_player = index
+			last_guard_target = index
 			_finish_night()
 
 func _witch_choices() -> void:
@@ -290,7 +323,11 @@ func _begin_day() -> void:
 	_refresh()
 	_clear_actions()
 	status_label.text = "☀️ " + _tr("الصباح — ناقشوا وصوّتوا", "Le jour — débattez et votez", "Day — discuss and vote")
-	_button(_tr("ابدأ التصويت", "Lancer le vote", "Start voting"), _show_vote_targets)
+	if players[0].alive:
+		_button(_tr("ابدأ التصويت", "Lancer le vote", "Start voting"), _show_vote_targets)
+	else:
+		status_label.text += " — " + _tr("أنت متفرج بعد خروجك", "Vous observez après votre élimination", "You are spectating after elimination")
+		_button(_tr("تابع تصويت القرية", "Continuer le vote du village", "Continue village vote"), _cast_spectator_vote)
 
 func _show_vote_targets() -> void:
 	_clear_actions()
@@ -298,8 +335,13 @@ func _show_vote_targets() -> void:
 		if i != 0 and players[i].alive:
 			_button(_tr("صوّت ضد ", "Voter contre ", "Vote against ") + str(players[i].name), func(): _cast_vote(i))
 
+func _cast_spectator_vote() -> void:
+	_cast_vote(-1)
+
 func _cast_vote(target: int) -> void:
-	var votes: Dictionary = {target: 1}
+	var votes: Dictionary = {}
+	if target >= 0:
+		votes[target] = 1
 	for i in range(1, players.size()):
 		if not players[i].alive:
 			continue
@@ -311,17 +353,25 @@ func _cast_vote(target: int) -> void:
 			continue
 		var choice := options[randi() % options.size()]
 		if players[i].role == "werewolf":
+			var village_options: Array[int] = []
 			for option in options:
 				if players[option].role != "werewolf":
-					choice = option
-					break
+					village_options.append(option)
+			if not village_options.is_empty():
+				choice = village_options[randi() % village_options.size()]
 		votes[choice] = int(votes.get(choice, 0)) + 1
-	var eliminated := target
+	if votes.is_empty():
+		return
 	var highest := -1
+	var leaders: Array[int] = []
 	for key in votes:
-		if int(votes[key]) > highest:
-			highest = int(votes[key])
-			eliminated = int(key)
+		var count := int(votes[key])
+		if count > highest:
+			highest = count
+			leaders = [int(key)]
+		elif count == highest:
+			leaders.append(int(key))
+	var eliminated := leaders[randi() % leaders.size()]
 	players[eliminated].alive = false
 	log_lines.append("⚖ " + str(players[eliminated].name) + " " + _tr("أُخرج بالتصويت", "a été éliminé par vote", "was voted out"))
 	if players[eliminated].role == "hunter":
@@ -359,8 +409,8 @@ func _check_winner() -> bool:
 func _refresh() -> void:
 	var lines := log_lines.duplicate()
 	lines.append("")
-	lines.append(_tr("اللاعبون الأحياء:", "Joueurs en vie :", "Players alive:"))
+	lines.append(_tr("اللاعبون:", "Joueurs :", "Players:"))
 	for p in players:
-		if p.alive:
-			lines.append("• " + str(p.name) + ("  ★" if p.human else ""))
+		var marker := "🟢 " if p.alive else "⚫ "
+		lines.append(marker + str(p.name) + ("  ★" if p.human else "") + ("" if p.alive else " — " + _tr("مُقصى", "éliminé", "eliminated")))
 	log_label.text = "\n".join(lines)
