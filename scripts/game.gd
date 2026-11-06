@@ -51,6 +51,35 @@ func _build_shell() -> void:
 	var bg := ColorRect.new()
 	bg.color = Color("#090e1b")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var sky_shader := Shader.new()
+	sky_shader.code = """
+shader_type canvas_item;
+void fragment() {
+	vec2 uv = UV;
+	vec3 sky = mix(vec3(0.025, 0.045, 0.085), vec3(0.12, 0.16, 0.23), smoothstep(0.0, 0.9, uv.y));
+	vec2 moon_uv = uv - vec2(0.78, 0.19);
+	moon_uv.x *= 0.72;
+	float moon_d = length(moon_uv);
+	float moon = 1.0 - smoothstep(0.105, 0.118, moon_d);
+	float halo = 1.0 - smoothstep(0.11, 0.42, moon_d);
+	sky += vec3(0.88, 0.72, 0.48) * moon * 0.92;
+	sky += vec3(0.42, 0.35, 0.26) * halo * 0.18;
+	vec2 cell = floor(uv * vec2(72.0, 128.0));
+	float star_hash = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
+	float stars = step(0.992, star_hash) * (0.35 + 0.65 * sin(TIME * (1.0 + star_hash * 2.0) + star_hash * 30.0));
+	sky += vec3(0.72, 0.79, 0.92) * stars * (1.0 - smoothstep(0.2, 0.95, uv.y)) * 0.7;
+	float mist_a = sin(uv.x * 8.0 + TIME * 0.12 + uv.y * 5.0);
+	float mist_b = sin(uv.x * 13.0 - TIME * 0.08 + uv.y * 8.0);
+	float mist = smoothstep(0.18, 0.95, mist_a * 0.5 + mist_b * 0.5) * smoothstep(0.48, 0.92, uv.y);
+	sky = mix(sky, vec3(0.22, 0.29, 0.37), mist * 0.16);
+	float vignette = smoothstep(0.95, 0.18, length((uv - 0.5) * vec2(0.8, 1.0)));
+	sky *= 0.72 + vignette * 0.28;
+	COLOR = vec4(sky, 1.0);
+}
+"""
+	var sky_material := ShaderMaterial.new()
+	sky_material.shader = sky_shader
+	bg.material = sky_material
 	add_child(bg)
 	var frame := MarginContainer.new()
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
