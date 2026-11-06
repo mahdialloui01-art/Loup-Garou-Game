@@ -253,7 +253,7 @@ func _run_ai_night() -> void:
 		for i in range(1, players.size()):
 			if players[i].alive and players[i].role == "witch":
 				witches.append(i)
-		if not witches.is_empty() and attacked_player >= 0 and not witch_heal_used:
+		if not witches.is_empty() and attacked_player >= 0 and attacked_player != protected_player and not witch_heal_used:
 			if randf() < 0.55:
 				attacked_player = -1
 				witch_heal_used = true
@@ -296,23 +296,25 @@ func _night_target(kind: String, index: int) -> void:
 func _witch_choices() -> void:
 	_clear_actions()
 	status_label.text = "🧪 " + _tr("الساحرة — لديك جرعتان طوال المباراة", "Sorcière — deux potions pour toute la partie", "Witch — two potions for the whole match")
-	if attacked_player >= 0 and not witch_heal_used:
+	if attacked_player >= 0 and attacked_player != protected_player and not witch_heal_used:
 		_button(_tr("استخدم جرعة الشفاء", "Utiliser la potion de soin", "Use healing potion"), func():
 			witch_heal_used = true
 			attacked_player = -1
-			_finish_night())
+			_witch_choices())
 	if not witch_poison_used:
 		_button(_tr("استخدم السم", "Utiliser le poison", "Use poison"), _show_poison_targets)
-	_button(_tr("احتفظ بالجرعات", "Garder les potions", "Save potions"), _finish_night)
+	_button(_tr("إنهاء دور الساحرة", "Terminer le tour de la sorcière", "Finish witch turn"), _finish_night)
 
 func _show_poison_targets() -> void:
 	_clear_actions()
+	status_label.text = "☠ " + _tr("اختر هدف جرعة السم", "Choisissez la cible du poison", "Choose a poison target")
 	for i in range(1, players.size()):
 		if players[i].alive:
 			_button(str(players[i].name), func():
 				selected_player = i
 				witch_poison_used = true
-				_finish_night())
+				_witch_choices())
+	_button(_tr("رجوع", "Retour", "Back"), _witch_choices)
 
 func _finish_night() -> void:
 	var deaths: Array[int] = []
