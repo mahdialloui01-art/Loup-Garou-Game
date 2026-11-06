@@ -1,23 +1,27 @@
 # LOUP GAROU — Legends of the Village
 
-A standalone Godot 4.4 Android game project for the classic Werewolf social-deduction party game.
+A standalone Godot 4.4.1 Android game project for the classic Werewolf social-deduction party game.
 
-## Implemented in the current development build
+## Current playable foundation
 - Arabic, French and English interface selection.
-- Offline matches for 6–10 seats, with the human player and AI-controlled villagers.
-- Role distribution based on match size: Werewolf, Seer, Witch, Guard, Hunter and Villager.
-- Night/day loop, secret role reveal, Seer investigation, Guard protection, Witch healing and poison, Hunter's final shot, voting and win conditions.
-- AI night actions and voting behavior.
+- Offline matches for 6–10 seats: one human player and AI-controlled villagers.
+- Role distribution: Werewolf, Seer, Witch, Guard, Hunter and Villager.
+- Private role briefing before the first night, with a short explanation of each role.
+- Night/day loop, Seer investigation, Guard protection (including self-protection and no consecutive repeat target), Witch healing and poison, Hunter's final shot, village voting, tie-breaking and win conditions.
+- AI night actions and voting, plus spectator continuation after the human player is eliminated.
+- Dark village-themed interface with styled action buttons and a live player/elimination list.
 
 ## Still in development
-- Full balance and edge-case testing of the offline rules and AI.
-- Better player portraits, animations, sound, tutorials and settings.
-- Local pass-and-play.
+- Runtime and full rules/balance testing on Godot 4.4.1.
+- Rich character portraits, map/background art, animations, sound and tutorial.
+- Local pass-and-play with multiple human seats.
 - Online rooms, matchmaking, reconnect handling and server-authoritative game state.
-- Android export, store assets, privacy and release checks.
+- Android export configuration, store assets, privacy and release checks.
 
-## Build
+## Run locally
 Open this folder in Godot 4.4.1 or later and run `scenes/main.tscn`.
-Android export requires Android SDK/JDK and matching Godot export templates.
 
-**Build status:** The source changes have been committed to GitHub. An APK has not yet been built or runtime-tested in this development step.
+## Automated check
+GitHub Actions runs a headless Godot import and startup smoke test on pushes and pull requests. This checks project loading and startup; it does not replace manual gameplay testing or Android-device testing.
+
+**Build status:** Source updates are committed. No APK has been produced or verified yet.
