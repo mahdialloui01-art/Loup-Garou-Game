@@ -205,7 +205,16 @@ func _show_role_reveal() -> void:
 	phase = "reveal"
 	_clear_actions()
 	status_label.text = "🃏 " + _tr("دورك السري", "Votre rôle secret", "Your secret role")
-	log_label.text = "━━━━━━━━━━━━━━━━━━━━\n" + _role_name(players[0].role) + "\n\n" + _role_description(players[0].role) + "\n\n" + _tr("لا تكشف دورك للآخرين!", "Ne révélez pas votre rôle !", "Keep your role secret!") + "\n━━━━━━━━━━━━━━━━━━━━"
+	var briefing := "━━━━━━━━━━━━━━━━━━━━\n" + _role_name(players[0].role) + "\n\n" + _role_description(players[0].role)
+	if players[0].role == "werewolf":
+		var allies: Array[String] = []
+		for i in range(1, players.size()):
+			if players[i].alive and players[i].role == "werewolf":
+				allies.append(str(players[i].name))
+		if not allies.is_empty():
+			briefing += "\n\n🐺 " + _tr("حلفاؤك من الذئاب: ", "Vos alliés loups : ", "Your fellow werewolves: ") + ", ".join(PackedStringArray(allies))
+	briefing += "\n\n" + _tr("لا تكشف دورك للآخرين!", "Ne révélez pas votre rôle !", "Keep your role secret!") + "\n━━━━━━━━━━━━━━━━━━━━"
+	log_label.text = briefing
 	_button(_tr("ابدأ الليلة الأولى", "Commencer la première nuit", "Begin the first night"), _begin_night)
 
 func _role_name(role: String) -> String:
@@ -358,8 +367,10 @@ func _hunter_revenge() -> void:
 	phase = "hunter"
 	_clear_actions()
 	status_label.text = "🎯 " + _tr("الصياد قبل رحيله يختار من يأخذه معه", "Le chasseur choisit une dernière cible", "The hunter chooses one final target")
+	var available_targets := 0
 	for i in range(players.size()):
 		if i != hunter_pending and players[i].alive:
+			available_targets += 1
 			_button(str(players[i].name), func():
 				players[i].alive = false
 				log_lines.append("🎯 " + str(players[i].name) + " " + _tr("أُصيب برصاصة الصياد — دوره: ", "a été touché par le chasseur — rôle : ", "was shot by the hunter — role: ") + _role_name(players[i].role))
@@ -372,6 +383,9 @@ func _hunter_revenge() -> void:
 						_begin_night()
 					else:
 						_begin_day()
+	if available_targets == 0:
+		hunter_pending = -1
+		_check_winner()
 
 func _begin_day() -> void:
 	phase = "day"
