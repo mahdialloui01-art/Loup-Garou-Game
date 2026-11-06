@@ -33,7 +33,7 @@ jobs:
 
       - name: Install Android SDK components
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.1.13356709"
+          sdkmanager "cmdline-tools;latest" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Install Godot 4.4.1
         uses: chickensoft-games/setup-godot@v2
@@ -41,14 +41,16 @@ jobs:
           version: 4.4.1
           use-dotnet: false
 
-      - name: Install Godot export templates
+      - name: Install matching Godot export templates
         run: |
           curl -L --fail --retry 3 \
             -o /tmp/godot-templates.tpz \
             https://github.com/godotengine/godot/releases/download/4.4.1-stable/Godot_v4.4.1-stable_export_templates.tpz
-          mkdir -p "$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.4.1.stable"
+          mkdir -p "$TEMPLATE_DIR"
           unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
-          cp /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
+          cp /tmp/godot-templates/templates/* "$TEMPLATE_DIR/"
+          printf '4.4.1.stable' > "$TEMPLATE_DIR/version.txt"
 
       - name: Configure Android SDK paths for Godot
         run: |
@@ -63,20 +65,23 @@ jobs:
       - name: Create temporary debug signing key
         run: |
           mkdir -p "$HOME/.android"
-          if [ ! -f "$HOME/.android/debug.keystore" ]; then
-            keytool -genkeypair -v \
-              -keystore "$HOME/.android/debug.keystore" \
-              -storepass android -alias androiddebugkey \
-              -keypass android -keyalg RSA -keysize 2048 \
-              -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          fi
+          keytool -genkeypair -v \
+            -keystore "$HOME/.android/debug.keystore" \
+            -storepass android -alias androiddebugkey \
+            -keypass android -keyalg RSA -keysize 2048 \
+            -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
 
       - name: Import project resources
         run: godot --headless --editor --path . --quit
 
       - name: Export debug APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
+          cp "$HOME/.android/debug.keystore" "$RUNNER_TEMP/debug.keystore"
           godot --headless --path . --export-debug "Android" build/LoupGarou-debug.apk
           test -s build/LoupGarou-debug.apk
 
