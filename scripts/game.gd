@@ -43,52 +43,102 @@ func _ready() -> void:
 
 func _build_shell() -> void:
 	var bg := ColorRect.new()
-	bg.color = Color("#101522")
+	bg.color = Color("#090e1b")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	var frame := MarginContainer.new()
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	frame.add_theme_constant_override("margin_left", 22)
-	frame.add_theme_constant_override("margin_right", 22)
-	frame.add_theme_constant_override("margin_top", 24)
-	frame.add_theme_constant_override("margin_bottom", 22)
+	frame.add_theme_constant_override("margin_left", 18)
+	frame.add_theme_constant_override("margin_right", 18)
+	frame.add_theme_constant_override("margin_top", 18)
+	frame.add_theme_constant_override("margin_bottom", 18)
 	add_child(frame)
 	root_box = VBoxContainer.new()
-	root_box.add_theme_constant_override("separation", 14)
+	root_box.add_theme_constant_override("separation", 12)
 	root_box.layout_direction = Control.LAYOUT_DIRECTION_RTL
 	frame.add_child(root_box)
 	var header := HBoxContainer.new()
 	root_box.add_child(header)
+	var brand := VBoxContainer.new()
+	brand.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(brand)
 	var title := Label.new()
-	title.text = "🌙  LOUP GAROU"
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color("#f4c96b"))
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
+	title.text = "LOUP GAROU"
+	title.add_theme_font_size_override("font_size", 25)
+	title.add_theme_color_override("font_color", Color("#f4d58a"))
+	brand.add_child(title)
+	var subtitle := Label.new()
+	subtitle.text = _tr("أسطورة القرية", "LA LÉGENDE DU VILLAGE", "THE VILLAGE LEGEND")
+	subtitle.add_theme_font_size_override("font_size", 10)
+	subtitle.add_theme_color_override("font_color", Color("#8fa2c4"))
+	brand.add_child(subtitle)
 	var lang := OptionButton.new()
 	lang.add_item("العربية", 0)
 	lang.add_item("Français", 1)
 	lang.add_item("English", 2)
+	lang.custom_minimum_size = Vector2(104, 42)
 	lang.item_selected.connect(_change_language)
 	header.add_child(lang)
+	var accent := ColorRect.new()
+	accent.color = Color("#c99b52")
+	accent.custom_minimum_size = Vector2(0, 2)
+	root_box.add_child(accent)
+	var status_panel := PanelContainer.new()
+	status_panel.add_theme_stylebox_override("panel", _make_panel_style(Color("#17243a"), Color("#354865"), 18))
+	root_box.add_child(status_panel)
 	status_label = Label.new()
-	status_label.add_theme_font_size_override("font_size", 22)
-	status_label.add_theme_color_override("font_color", Color("#f4c96b"))
+	status_label.custom_minimum_size = Vector2(0, 48)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	root_box.add_child(status_label)
+	status_label.add_theme_font_size_override("font_size", 18)
+	status_label.add_theme_color_override("font_color", Color("#f5d99c"))
+	status_panel.add_child(status_label)
+	var panel := PanelContainer.new()
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override("panel", _make_panel_style(Color("#111a2b"), Color("#263852"), 20))
+	root_box.add_child(panel)
+	var inner := MarginContainer.new()
+	inner.add_theme_constant_override("margin_left", 15)
+	inner.add_theme_constant_override("margin_right", 15)
+	inner.add_theme_constant_override("margin_top", 14)
+	inner.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(inner)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+	inner.add_child(content)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root_box.add_child(scroll)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content.add_child(scroll)
 	log_label = Label.new()
 	log_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	log_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	log_label.add_theme_font_size_override("font_size", 17)
-	log_label.add_theme_color_override("font_color", Color("#e5eaf4"))
+	log_label.add_theme_font_size_override("font_size", 16)
+	log_label.add_theme_color_override("font_color", Color("#e2e9f5"))
+	log_label.add_theme_constant_override("line_spacing", 5)
 	scroll.add_child(log_label)
+	var actions_scroll := ScrollContainer.new()
+	actions_scroll.custom_minimum_size = Vector2(0, 205)
+	actions_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	actions_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	content.add_child(actions_scroll)
 	action_box = VBoxContainer.new()
-	action_box.add_theme_constant_override("separation", 10)
-	root_box.add_child(action_box)
+	action_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_box.add_theme_constant_override("separation", 9)
+	actions_scroll.add_child(action_box)
+
+func _make_panel_style(fill: Color, outline: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = outline
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(radius)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	return style
 
 func _change_language(index: int) -> void:
 	language = ["ar", "fr", "en"][index]
@@ -120,26 +170,19 @@ func _tr(ar: String, fr: String, en: String) -> String:
 func _button(caption: String, callback: Callable) -> void:
 	var b := Button.new()
 	b.text = caption
-	b.custom_minimum_size = Vector2(0, 58)
-	b.add_theme_font_size_override("font_size", 18)
-	b.add_theme_color_override("font_color", Color("#f4f6fb"))
-	b.add_theme_color_override("font_hover_color", Color("#101522"))
-	var normal := StyleBoxFlat.new()
-	normal.bg_color = Color("#27344a")
-	normal.corner_radius_top_left = 12
-	normal.corner_radius_top_right = 12
-	normal.corner_radius_bottom_left = 12
-	normal.corner_radius_bottom_right = 12
-	normal.border_width_left = 1
-	normal.border_width_right = 1
-	normal.border_width_top = 1
-	normal.border_width_bottom = 1
-	normal.border_color = Color("#465875")
-	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = Color("#f4c96b")
+	b.custom_minimum_size = Vector2(0, 56)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size", 16)
+	b.add_theme_color_override("font_color", Color("#f5f7fc"))
+	b.add_theme_color_override("font_hover_color", Color("#101827"))
+	b.add_theme_color_override("font_pressed_color", Color("#101827"))
+	var normal := _make_panel_style(Color("#243650"), Color("#3d5575"), 16)
+	var hover := _make_panel_style(Color("#d4aa65"), Color("#f0d39c"), 16)
+	var pressed := _make_panel_style(Color("#b88b4b"), Color("#e7c58a"), 16)
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", hover)
+	b.add_theme_stylebox_override("pressed", pressed)
+	b.add_theme_stylebox_override("focus", hover)
 	b.pressed.connect(callback)
 	action_box.add_child(b)
 
@@ -150,7 +193,7 @@ func _clear_actions() -> void:
 func _show_lobby() -> void:
 	phase = "lobby"
 	status_label.text = _tr("قرية غامضة تنتظر شجاعتك", "Un village mystérieux vous attend", "A mysterious village awaits you")
-	log_label.text = _tr("اختر عدد المقاعد. ستلعب بشخصيتك ضد سكان القرية الذين يتحكم بهم الذكاء الاصطناعي.", "Choisissez le nombre de joueurs. Affrontez les habitants contrôlés par l'IA.", "Choose the player count and face AI-controlled villagers.")
+	log_label.text = _tr("لعبة أوفلاين ضد الذكاء الاصطناعي. اختر عدد اللاعبين وابدأ مغامرتك.\n\nلا يوجد طور أونلاين حالياً؛ لن نظهره كميزة متاحة قبل بناء لعب جماعي حقيقي.", "Mode hors ligne contre l’intelligence artificielle. Le multijoueur en ligne n’est pas encore disponible.", "Offline game against AI. Online multiplayer is not available yet.")
 	_clear_actions()
 	for count in [6, 7, 8, 9, 10]:
 		_button(str(count) + " " + _tr("لاعبين — أوفلاين", "joueurs — hors ligne", "players — offline"), func(): _start_offline(count))
