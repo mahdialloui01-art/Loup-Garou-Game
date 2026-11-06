@@ -22,6 +22,6 @@ A standalone Godot 4.4.1 Android game project for the classic Werewolf social-de
 Open this folder in Godot 4.4.1 or later and run `scenes/main.tscn`.
 
 ## Automated check
-GitHub Actions runs a headless Godot import and startup smoke test on pushes and pull requests. This checks project loading and startup; it does not replace manual gameplay testing or Android-device testing.
+A GitHub Actions workflow is configured to run a headless Godot import and startup smoke test on pushes and pull requests. The workflow has not yet reported a completed run in this session. Even a passing smoke test will not replace manual gameplay testing or Android-device testing.
 
 **Build status:** Source updates are committed. No APK has been produced or verified yet.
