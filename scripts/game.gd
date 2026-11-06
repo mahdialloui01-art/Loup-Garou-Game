@@ -291,7 +291,6 @@ func _run_ai_night() -> void:
 				witch_heal_used = true
 		if not witches.is_empty() and not witch_poison_used and randf() < 0.12:
 			var targets := _alive_indices()
-			targets.erase(0)
 			if not targets.is_empty():
 				selected_player = targets[randi() % targets.size()]
 				witch_poison_used = true
