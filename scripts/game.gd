@@ -441,6 +441,10 @@ func _cast_vote(target: int) -> void:
 			leaders = [int(key)]
 		elif count == highest:
 			leaders.append(int(key))
+	if leaders.size() > 1:
+		log_lines.append("🤝 " + _tr("تعادل في الأصوات — تم كسر التعادل عشوائياً.", "Égalité des votes — départage aléatoire.", "Vote tied — a random tie-break was used."))
+	for key in votes:
+		log_lines.append("🗳 " + str(players[int(key)].name) + ": " + str(votes[key]) + " " + _tr("صوت", "voix", "votes"))
 	var eliminated := leaders[randi() % leaders.size()]
 	players[eliminated].alive = false
 	log_lines.append("⚖ " + str(players[eliminated].name) + " " + _tr("أُخرج بالتصويت — دوره: ", "a été éliminé par vote — rôle : ", "was voted out — role: ") + _role_name(players[eliminated].role))
@@ -473,6 +477,7 @@ func _check_winner() -> bool:
 		return false
 	_refresh()
 	_clear_actions()
+	_button(_tr("مباراة جديدة بنفس العدد", "Nouvelle partie avec le même nombre", "New match with same player count"), func(): _start_offline(player_count))
 	_button(_tr("العودة للقائمة", "Retour au menu", "Back to menu"), _show_lobby)
 	return true
 
