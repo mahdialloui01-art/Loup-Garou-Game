@@ -11,17 +11,18 @@ A standalone Godot 4.4.1 Android game project for the classic Werewolf social-de
 - AI night actions and voting, plus spectator continuation after the human player is eliminated.
 - Dark village-themed interface with styled action buttons and a live player/elimination list.
 
+## Automated checks and Android builds
+- The Godot CI workflow imports project resources and starts the main scene headlessly.
+- The Android workflow exports an **ARM64 debug APK** with Godot 4.4.1 and uploads it as the `LoupGarou-Android-debug` workflow artifact (retained for 14 days).
+- This debug APK is for installation and testing only. It is **not** a release-signed build and is not ready for Google Play submission.
+- A successful workflow run and a downloadable artifact are required before an APK can be considered produced.
+
 ## Still in development
-- Runtime and full rules/balance testing on Godot 4.4.1.
+- Runtime and full rules/balance testing on Godot 4.4.1 and physical Android devices.
 - Rich character portraits, map/background art, animations, sound and tutorial.
 - Local pass-and-play with multiple human seats.
 - Online rooms, matchmaking, reconnect handling and server-authoritative game state.
-- Android export configuration, store assets, privacy and release checks.
+- Store assets, privacy and release checks.
 
 ## Run locally
 Open this folder in Godot 4.4.1 or later and run `scenes/main.tscn`.
-
-## Automated check
-A GitHub Actions workflow is configured to run a headless Godot import and startup smoke test on pushes and pull requests. Recent workflow attempts failed before a runner was assigned (the jobs contained no executed steps), so the source has not yet been compiled by CI. Even a passing smoke test will not replace manual gameplay testing or Android-device testing.
-
-**Build status:** Source updates are committed. No APK has been produced or verified yet.
