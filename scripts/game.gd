@@ -383,6 +383,7 @@ func _hunter_revenge() -> void:
 						_begin_night()
 					else:
 						_begin_day()
+			)
 	if available_targets == 0:
 		hunter_pending = -1
 		_check_winner()
