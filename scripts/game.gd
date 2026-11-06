@@ -55,6 +55,7 @@ func _build_shell() -> void:
 	add_child(frame)
 	root_box = VBoxContainer.new()
 	root_box.add_theme_constant_override("separation", 14)
+	root_box.layout_direction = Control.LAYOUT_DIRECTION_RTL
 	frame.add_child(root_box)
 	var header := HBoxContainer.new()
 	root_box.add_child(header)
@@ -91,10 +92,24 @@ func _build_shell() -> void:
 
 func _change_language(index: int) -> void:
 	language = ["ar", "fr", "en"][index]
-	if phase == "lobby":
-		_show_lobby()
-	else:
-		_refresh()
+	root_box.layout_direction = Control.LAYOUT_DIRECTION_RTL if language == "ar" else Control.LAYOUT_DIRECTION_LTR
+	match phase:
+		"lobby":
+			_show_lobby()
+		"guide":
+			_show_role_guide()
+		"reveal":
+			_show_role_reveal()
+		"night":
+			_render_night_actions()
+		"day":
+			_begin_day()
+		"hunter":
+			_hunter_revenge()
+		"finished":
+			_check_winner()
+		_:
+			_refresh()
 
 func _tr(ar: String, fr: String, en: String) -> String:
 	match language:
@@ -210,6 +225,9 @@ func _begin_night() -> void:
 	attacked_player = -1
 	_run_ai_night()
 	_refresh()
+	_render_night_actions()
+
+func _render_night_actions() -> void:
 	_clear_actions()
 	status_label.text = "🌑 " + _tr("الليلة رقم ", "Nuit numéro ", "Night ") + str(round_number)
 	var role: String = players[0].role
