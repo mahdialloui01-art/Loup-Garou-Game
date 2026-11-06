@@ -179,6 +179,11 @@ func _start_offline(count: int) -> void:
 			"human": i == 0
 		})
 	round_number = 1
+	selected_player = -1
+	protected_player = -1
+	attacked_player = -1
+	hunter_pending = -1
+	hunter_return_to_night = false
 	witch_heal_used = false
 	witch_poison_used = false
 	last_guard_target = -1
