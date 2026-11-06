@@ -26,6 +26,7 @@ var attacked_player := -1
 var witch_heal_used := true
 var witch_poison_used := true
 var hunter_pending := -1
+var hunter_return_to_night := false
 var log_lines: Array[String] = []
 var player_count := 8
 
@@ -258,6 +259,7 @@ func _finish_night() -> void:
 			if players[victim].role == "hunter":
 				hunter_pending = victim
 	if hunter_pending >= 0:
+		hunter_return_to_night = false
 		_hunter_revenge()
 		return
 	_check_winner()
@@ -276,7 +278,12 @@ func _hunter_revenge() -> void:
 				hunter_pending = -1
 				_check_winner()
 				if phase != "finished":
-					_begin_day())
+					if hunter_return_to_night:
+						hunter_return_to_night = false
+						round_number += 1
+						_begin_night()
+					else:
+						_begin_day())
 
 func _begin_day() -> void:
 	phase = "day"
@@ -319,6 +326,7 @@ func _cast_vote(target: int) -> void:
 	log_lines.append("⚖ " + str(players[eliminated].name) + " " + _tr("أُخرج بالتصويت", "a été éliminé par vote", "was voted out"))
 	if players[eliminated].role == "hunter":
 		hunter_pending = eliminated
+		hunter_return_to_night = true
 		_hunter_revenge()
 		return
 	_check_winner()
