@@ -2,7 +2,7 @@ name: Castle Destroyer Android
 
 on:
   push:
-    branches: [main, castle-destroyer-android]
+    branches: [main, castle-destroyer-android, castle-destroyer-expansion]
     paths:
       - 'CastleDestroyer/**'
       - '.github/workflows/castle-destroyer-android.yml'
@@ -58,6 +58,8 @@ jobs:
           keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
       - name: Import and validate game
         run: godot --headless --editor --path CastleDestroyer --quit
+      - name: Run headless game smoke test
+        run: godot --headless --path CastleDestroyer --quit-after 5
       - name: Export debug APK
         env:
           GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
