@@ -278,10 +278,15 @@ func _upgrade_walls() -> void:
 	else:
 		gold -= cost
 		wall_level += 1
+		for i in range(blocks.size()):
+			var block: Dictionary = blocks[i]
+			if block["team"] == "player":
+				block["max_hp"] = int(block["max_hp"]) + 1
+				block["hp"] = int(block["hp"]) + 1
+				blocks[i] = block
+		player_max_health += blocks.filter(func(block): return block["team"] == "player").size()
 		_save_progress()
-		message = "YOUR WALLS ARE NOW LEVEL %d!" % wall_level
-		_new_game()
-		message = "FORTIFIED! DEFEND YOUR CASTLE"
+		message = "FORTIFIED! WALL ARMOR IS NOW LEVEL %d" % wall_level
 	_update_hud()
 
 func _next_level() -> void:
