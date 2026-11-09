@@ -52,11 +52,20 @@ jobs:
           export/android/android_sdk_path = "$ANDROID_HOME"
           export/android/java_sdk_path = "$JAVA_HOME"
           EOF
+      - name: Create temporary debug signing key
+        run: |
+          mkdir -p "$HOME/.android"
+          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
       - name: Import and validate game
         run: godot --headless --editor --path CastleDestroyer --quit
       - name: Export debug APK
+        env:
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
+          cp "$HOME/.android/debug.keystore" "$RUNNER_TEMP/debug.keystore"
           godot --headless --path CastleDestroyer --export-debug "Android" build/CastleDestroyer-debug.apk
           test -s build/CastleDestroyer-debug.apk
       - uses: actions/upload-artifact@v4
