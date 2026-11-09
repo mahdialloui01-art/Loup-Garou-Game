@@ -1,24 +1,52 @@
 extends Control
 
+# Castle Destroyer - campaign foundation
+# All artwork is original procedural drawing; no Castle Busters assets are used.
+
 const FLOOR_Y := 555.0
 const PLAYER_CANNON := Vector2(205.0, 505.0)
 const ENEMY_CANNON := Vector2(1075.0, 505.0)
+const SAVE_PATH := "user://castle_destroyer.cfg"
+const WEAPONS := [
+	{"id": "stone", "name": "STONE", "damage": 1, "radius": 8.0, "speed": 18.0, "splash": 0.0, "cost": 0},
+	{"id": "bomb", "name": "MEGA BOMB", "damage": 4, "radius": 13.0, "speed": 15.5, "splash": 48.0, "cost": 0},
+	{"id": "fire", "name": "FIRE ORB", "damage": 2, "radius": 11.0, "speed": 16.5, "splash": 30.0, "cost": 0}
+]
 
 var blocks: Array = []
 var projectiles: Array = []
 var particles: Array = []
 var score := 0
+var gold := 0
+var level := 1
+var best_level := 1
+var cannon_level := 1
+var wall_level := 1
+var ammo: Dictionary = {"stone": 999, "bomb": 12, "fire": 8}
+var weapon_index := 0
 var elapsed := 0.0
+var enemy_cooldown := 2.5
 var game_over := false
 var paused := false
-var message := "DESTROY THE ENEMY CASTLE!"
-var enemy_cooldown := 2.5
+var reward_claimed := false
+var aiming := false
+var aim_origin := Vector2.ZERO
+var aim_point := Vector2.ZERO
+var message := "DRAG FROM YOUR CANNON TO AIM"
 var score_label: Label
 var status_label: Label
 var player_label: Label
 var enemy_label: Label
+var level_label: Label
+var gold_label: Label
+var weapon_button: Button
+var fire_button: Button
+var upgrade_button: Button
+var next_button: Button
 
 func _ready() -> void:
+	randomize()
+	_load_progress()
 	_build_ui()
 	_new_game()
 	set_process(true)
@@ -26,56 +54,67 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var top := HBoxContainer.new()
 	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top.offset_left = 22
-	top.offset_top = 14
-	top.offset_right = -22
-	top.offset_bottom = 62
+	top.offset_left = 18
+	top.offset_top = 12
+	top.offset_right = -18
+	top.offset_bottom = 56
+	top.add_theme_constant_override("separation", 16)
 	add_child(top)
 
-	player_label = _make_label("YOUR CASTLE 100%", 22)
+	player_label = _make_label("YOUR FORT 100%", 18)
 	top.add_child(player_label)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(spacer)
-	score_label = _make_label("SCORE 0", 22)
+	var spacer_a := Control.new()
+	spacer_a.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(spacer_a)
+	level_label = _make_label("LEVEL 1", 21)
+	top.add_child(level_label)
+	score_label = _make_label("SCORE 0", 18)
 	top.add_child(score_label)
-	var spacer2 := Control.new()
-	spacer2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top.add_child(spacer2)
-	enemy_label = _make_label("ENEMY CASTLE 100%", 22)
+	gold_label = _make_label("GOLD 0", 18)
+	top.add_child(gold_label)
+	var spacer_b := Control.new()
+	spacer_b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(spacer_b)
+	enemy_label = _make_label("ENEMY FORT 100%", 18)
 	top.add_child(enemy_label)
 
-	status_label = _make_label(message, 25)
+	status_label = _make_label(message, 24)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	status_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	status_label.offset_left = -350
-	status_label.offset_top = 75
-	status_label.offset_right = 350
-	status_label.offset_bottom = 112
+	status_label.offset_left = -420
+	status_label.offset_top = 65
+	status_label.offset_right = 420
+	status_label.offset_bottom = 102
 	add_child(status_label)
 
 	var controls := HBoxContainer.new()
 	controls.alignment = BoxContainer.ALIGNMENT_CENTER
-	controls.add_theme_constant_override("separation", 22)
+	controls.add_theme_constant_override("separation", 12)
 	controls.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	controls.offset_left = 20
-	controls.offset_top = -82
-	controls.offset_right = -20
-	controls.offset_bottom = -12
+	controls.offset_left = 12
+	controls.offset_top = -76
+	controls.offset_right = -12
+	controls.offset_bottom = -10
 	add_child(controls)
 
-	var normal := _make_button("FIRE  •  NORMAL", Color("#2878b9"))
-	normal.pressed.connect(func(): _fire(false))
-	controls.add_child(normal)
-	var heavy := _make_button("HEAVY  •  POWER", Color("#b45309"))
-	heavy.pressed.connect(func(): _fire(true))
-	controls.add_child(heavy)
+	weapon_button = _make_button("WEAPON: STONE", Color("#334155"))
+	weapon_button.pressed.connect(_cycle_weapon)
+	controls.add_child(weapon_button)
+	fire_button = _make_button("FIRE", Color("#2563a6"))
+	fire_button.pressed.connect(_fire_selected)
+	controls.add_child(fire_button)
+	upgrade_button = _make_button("UPGRADE CANNON", Color("#a16207"))
+	upgrade_button.pressed.connect(_upgrade_cannon)
+	controls.add_child(upgrade_button)
+	var wall_button := _make_button("FORTIFY WALL", Color("#854d0e"))
+	wall_button.pressed.connect(_upgrade_walls)
+	controls.add_child(wall_button)
 	var pause_button := _make_button("PAUSE", Color("#475569"))
 	pause_button.pressed.connect(_toggle_pause)
 	controls.add_child(pause_button)
-	var reset_button := _make_button("RESTART", Color("#166534"))
-	reset_button.pressed.connect(_new_game)
-	controls.add_child(reset_button)
+	next_button = _make_button("NEXT LEVEL", Color("#166534"))
+	next_button.pressed.connect(_next_level)
+	controls.add_child(next_button)
 
 func _make_label(value: String, font_size: int) -> Label:
 	var label := Label.new()
@@ -90,8 +129,9 @@ func _make_label(value: String, font_size: int) -> Label:
 func _make_button(value: String, color: Color) -> Button:
 	var button := Button.new()
 	button.text = value
-	button.custom_minimum_size = Vector2(210, 58)
-	button.add_theme_font_size_override("font_size", 19)
+	button.custom_minimum_size = Vector2(170, 54)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", 15)
 	button.add_theme_color_override("font_color", Color.WHITE)
 	button.add_theme_stylebox_override("normal", _button_style(color))
 	button.add_theme_stylebox_override("hover", _button_style(color.lightened(0.12)))
@@ -101,13 +141,31 @@ func _make_button(value: String, color: Color) -> Button:
 func _button_style(color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
-	style.corner_radius_top_left = 12
-	style.corner_radius_top_right = 12
-	style.corner_radius_bottom_left = 12
-	style.corner_radius_bottom_right = 12
-	style.content_margin_left = 14
-	style.content_margin_right = 14
+	style.corner_radius_top_left = 11
+	style.corner_radius_top_right = 11
+	style.corner_radius_bottom_left = 11
+	style.corner_radius_bottom_right = 11
+	style.content_margin_left = 10
+	style.content_margin_right = 10
 	return style
+
+func _load_progress() -> void:
+	var config := ConfigFile.new()
+	if config.load(SAVE_PATH) != OK:
+		return
+	gold = int(config.get_value("progress", "gold", 0))
+	best_level = int(config.get_value("progress", "best_level", 1))
+	cannon_level = int(config.get_value("upgrades", "cannon_level", 1))
+	wall_level = int(config.get_value("upgrades", "wall_level", 1))
+	level = clampi(best_level, 1, 20)
+
+func _save_progress() -> void:
+	var config := ConfigFile.new()
+	config.set_value("progress", "gold", gold)
+	config.set_value("progress", "best_level", best_level)
+	config.set_value("upgrades", "cannon_level", cannon_level)
+	config.set_value("upgrades", "wall_level", wall_level)
+	config.save(SAVE_PATH)
 
 func _new_game() -> void:
 	blocks.clear()
@@ -115,57 +173,166 @@ func _new_game() -> void:
 	particles.clear()
 	score = 0
 	elapsed = 0.0
-	enemy_cooldown = 2.5
+	enemy_cooldown = 2.2
 	game_over = false
 	paused = false
-	message = "DESTROY THE ENEMY CASTLE!"
-	_add_castle(95.0, "player")
-	_add_castle(1010.0, "enemy")
+	reward_claimed = false
+	aiming = false
+	message = "DRAG FROM YOUR CANNON TO AIM"
+	ammo = {"stone": 999, "bomb": 12 + level, "fire": 8 + int(level / 2)}
+	_add_castle(90.0, "player", wall_level)
+	_add_castle(1010.0, "enemy", 1 + int((level - 1) / 3))
+	next_button.disabled = true
 	_update_hud()
 	queue_redraw()
 
-func _add_castle(origin_x: float, team: String) -> void:
-	for row in range(5):
+func _add_castle(origin_x: float, team: String, armor_level: int) -> void:
+	var rows := 5 + (1 if team == "enemy" and level >= 5 else 0)
+	for row in range(rows):
 		for col in range(5):
+			var max_hp := armor_level + (1 if row == rows - 1 else 0)
 			blocks.append({
 				"rect": Rect2(origin_x + float(col) * 24.0, FLOOR_Y - 25.0 - float(row) * 25.0, 23.0, 24.0),
 				"team": team,
-				"hp": 2 if row == 4 else 1,
-				"max_hp": 2 if row == 4 else 1
+				"hp": max_hp,
+				"max_hp": max_hp,
+				"kind": "stone"
 			})
-	# Keep a tower cap and a small flag mast.
-	blocks.append({"rect": Rect2(origin_x + 25.0, FLOOR_Y - 160.0, 72.0, 15.0), "team": team, "hp": 3, "max_hp": 3})
-	blocks.append({"rect": Rect2(origin_x + 49.0, FLOOR_Y - 205.0, 22.0, 45.0), "team": team, "hp": 2, "max_hp": 2})
+	# Main tower, battlements and flag mast.
+	blocks.append({"rect": Rect2(origin_x + 25.0, FLOOR_Y - 25.0 - float(rows) * 25.0, 72.0, 15.0), "team": team, "hp": armor_level + 2, "max_hp": armor_level + 2, "kind": "tower"})
+	blocks.append({"rect": Rect2(origin_x + 49.0, FLOOR_Y - 25.0 - float(rows) * 25.0 - 45.0, 22.0, 45.0), "team": team, "hp": armor_level + 1, "max_hp": armor_level + 1, "kind": "tower"})
 
-func _fire(heavy: bool) -> void:
+func _cycle_weapon() -> void:
+	weapon_index = (weapon_index + 1) % WEAPONS.size()
+	_update_hud()
+
+func _fire_selected() -> void:
+	var weapon: Dictionary = WEAPONS[weapon_index]
+	var weapon_id: String = weapon["id"]
 	if game_over or paused:
 		return
-	var velocity := Vector2(17.0, -15.0) if not heavy else Vector2(15.5, -13.0)
+	if int(ammo.get(weapon_id, 0)) <= 0:
+		message = "NO AMMO LEFT - SELECT ANOTHER WEAPON"
+		_update_hud()
+		return
+	ammo[weapon_id] = int(ammo[weapon_id]) - 1
+	var direction := Vector2(1.0, -0.72)
+	if aiming:
+		direction = (aim_point - PLAYER_CANNON).normalized()
+	aiming = false
+	if direction.x < 0.2:
+		direction.x = 0.2
+	direction.y = clampf(direction.y, -1.0, -0.08)
+	direction = direction.normalized()
+	var power := float(weapon["speed"]) * (1.0 + float(cannon_level - 1) * 0.045)
 	projectiles.append({
-		"pos": PLAYER_CANNON + Vector2(12.0, -10.0),
-		"vel": velocity,
-		"power": 3 if heavy else 1,
+		"pos": PLAYER_CANNON + Vector2(15.0, -12.0),
+		"vel": direction * power,
+		"power": int(weapon["damage"]),
 		"team": "player",
-		"radius": 12.0 if heavy else 8.0
+		"radius": float(weapon["radius"]),
+		"splash": float(weapon["splash"]),
+		"kind": weapon_id
 	})
-	message = "HEAVY SHOT!" if heavy else "FIRE!"
+	message = "%s FIRED!" % weapon["name"]
 	_update_hud()
 
 func _enemy_fire() -> void:
 	if game_over:
 		return
+	var target_x := 180.0 + randf_range(-55.0, 55.0)
+	var direction := (Vector2(target_x, 320.0) - ENEMY_CANNON).normalized()
 	projectiles.append({
-		"pos": ENEMY_CANNON + Vector2(-12.0, -10.0),
-		"vel": Vector2(-15.5, -14.0),
-		"power": 1,
+		"pos": ENEMY_CANNON + Vector2(-15.0, -12.0),
+		"vel": direction * randf_range(14.0, 17.0),
+		"power": 1 + int(level / 5),
 		"team": "enemy",
-		"radius": 8.0
+		"radius": 8.0,
+		"splash": 0.0,
+		"kind": "enemy"
 	})
+
+func _upgrade_cannon() -> void:
+	var cost := cannon_level * 80
+	if cannon_level >= 10:
+		message = "CANNON IS AT MAX LEVEL"
+	elif gold < cost:
+		message = "NEED %d MORE GOLD FOR CANNON UPGRADE" % (cost - gold)
+	else:
+		gold -= cost
+		cannon_level += 1
+		_save_progress()
+		message = "CANNON UPGRADED TO LEVEL %d!" % cannon_level
+	_update_hud()
+
+func _upgrade_walls() -> void:
+	var cost := wall_level * 100
+	if wall_level >= 8:
+		message = "FORT IS AT MAX LEVEL"
+	elif gold < cost:
+		message = "NEED %d MORE GOLD FOR FORTIFICATION" % (cost - gold)
+	else:
+		gold -= cost
+		wall_level += 1
+		_save_progress()
+		message = "YOUR WALLS ARE NOW LEVEL %d!" % wall_level
+		_new_game()
+		message = "FORTIFIED! DEFEND YOUR CASTLE"
+	_update_hud()
+
+func _next_level() -> void:
+	if not game_over or _team_health("enemy") > 0:
+		return
+	level += 1
+	best_level = maxi(best_level, level)
+	_save_progress()
+	_new_game()
 
 func _toggle_pause() -> void:
 	paused = not paused
-	message = "PAUSED" if paused else "BATTLE RESUMED"
+	message = "BATTLE PAUSED" if paused else "BATTLE RESUMED"
 	_update_hud()
+
+func _input(event: InputEvent) -> void:
+	if game_over or paused:
+		return
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			_begin_aim(touch.position)
+		else:
+			_end_aim(touch.position)
+	elif event is InputEventScreenDrag and aiming:
+		aim_point = (event as InputEventScreenDrag).position
+		queue_redraw()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_begin_aim(event.position)
+		else:
+			_end_aim(event.position)
+	elif event is InputEventMouseMotion and aiming and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		aim_point = event.position
+		queue_redraw()
+
+func _begin_aim(pos: Vector2) -> void:
+	if pos.x < 390.0 and pos.y > 160.0 and pos.y < 590.0:
+		aiming = true
+		aim_origin = PLAYER_CANNON
+		aim_point = pos
+		queue_redraw()
+
+func _end_aim(pos: Vector2) -> void:
+	if not aiming:
+		return
+	aim_point = pos
+	var direction := (aim_point - aim_origin).normalized()
+	if direction.x > 0.15 and direction.y < -0.05:
+		_fire_selected()
+	else:
+		aiming = false
+		message = "AIM UP AND TO THE RIGHT"
+		_update_hud()
+	queue_redraw()
 
 func _process(delta: float) -> void:
 	if paused or game_over:
@@ -174,7 +341,7 @@ func _process(delta: float) -> void:
 	enemy_cooldown -= delta
 	if enemy_cooldown <= 0.0:
 		_enemy_fire()
-		enemy_cooldown = randf_range(3.0, 4.5)
+		enemy_cooldown = maxf(1.7, randf_range(3.2, 4.4) - float(level) * 0.07)
 	_step_projectiles(delta)
 	_step_particles(delta)
 	_check_winner()
@@ -186,7 +353,7 @@ func _step_projectiles(delta: float) -> void:
 		var shot: Dictionary = projectiles[i]
 		var pos: Vector2 = shot["pos"]
 		var vel: Vector2 = shot["vel"]
-		vel.y += 25.0 * delta
+		vel.y += 0.34 * delta * 60.0
 		pos += vel * delta * 60.0
 		shot["pos"] = pos
 		shot["vel"] = vel
@@ -196,44 +363,66 @@ func _step_projectiles(delta: float) -> void:
 			if block["team"] == shot["team"]:
 				continue
 			var rect: Rect2 = block["rect"]
-			if rect.grow(float(shot["radius"]) * 0.45).has_point(pos):
+			if rect.grow(float(shot["radius"]) * 0.35).has_point(pos):
 				hit_index = j
 				break
 		if hit_index >= 0:
-			var target: Dictionary = blocks[hit_index]
-			_spawn_burst(pos, 9 if shot["power"] > 1 else 5)
-			target["hp"] = int(target["hp"]) - int(shot["power"])
-			if target["hp"] <= 0:
-				blocks.remove_at(hit_index)
-			if shot["team"] == "player":
-				score += 15 * int(shot["power"])
+			_explode(pos, shot, hit_index)
 			projectiles.remove_at(i)
-		elif pos.x < -30.0 or pos.x > 1310.0 or pos.y > 590.0 or pos.y < -30.0:
+		elif pos.x < -40.0 or pos.x > 1320.0 or pos.y > 620.0 or pos.y < -50.0:
 			projectiles.remove_at(i)
 		else:
 			projectiles[i] = shot
 
-func _spawn_burst(pos: Vector2, amount: int) -> void:
+func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
+	var splash := float(shot["splash"])
+	var damage := int(shot["power"])
+	var team: String = shot["team"]
+	var remove_list: Array[int] = []
+	for i in range(blocks.size()):
+		var block: Dictionary = blocks[i]
+		if block["team"] == team:
+			continue
+		var rect: Rect2 = block["rect"]
+		var center := rect.get_center()
+		var distance := center.distance_to(pos)
+		if i == direct_index or (splash > 0.0 and distance <= splash):
+			var applied := damage
+			if i != direct_index and splash > 0.0:
+				applied = maxi(1, int(round(float(damage) * (1.0 - distance / splash))))
+			block["hp"] = int(block["hp"]) - applied
+			if int(block["hp"]) <= 0:
+				remove_list.append(i)
+			if team == "player":
+				score += applied * 12
+			blocks[i] = block
+	_spawn_burst(pos, 15 if splash > 0.0 else 7, shot["kind"])
+	for i in range(remove_list.size() - 1, -1, -1):
+		blocks.remove_at(remove_list[i])
+
+func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
+	var particle_color := Color("#f97316") if kind == "fire" else Color("#a88b68")
 	for n in range(amount):
 		particles.append({
 			"pos": pos,
-			"vel": Vector2(randf_range(-4.5, 4.5), randf_range(-7.0, 1.0)),
-			"life": randf_range(0.35, 0.8),
-			"size": randf_range(4.0, 9.0)
+			"vel": Vector2(randf_range(-5.0, 5.0), randf_range(-8.0, 1.0)),
+			"life": randf_range(0.35, 0.9),
+			"size": randf_range(4.0, 10.0),
+			"color": particle_color
 		})
 
 func _step_particles(delta: float) -> void:
 	for i in range(particles.size() - 1, -1, -1):
-		var p: Dictionary = particles[i]
-		p["life"] = float(p["life"]) - delta
-		var velocity: Vector2 = p["vel"]
-		velocity.y += 18.0 * delta
-		p["vel"] = velocity
-		p["pos"] = (p["pos"] as Vector2) + velocity
-		if float(p["life"]) <= 0.0:
+		var particle: Dictionary = particles[i]
+		particle["life"] = float(particle["life"]) - delta
+		var velocity: Vector2 = particle["vel"]
+		velocity.y += 0.2 * delta * 60.0
+		particle["vel"] = velocity
+		particle["pos"] = (particle["pos"] as Vector2) + velocity * delta * 60.0
+		if float(particle["life"]) <= 0.0:
 			particles.remove_at(i)
 		else:
-			particles[i] = p
+			particles[i] = particle
 
 func _team_health(team: String) -> int:
 	var total := 0
@@ -245,50 +434,114 @@ func _team_health(team: String) -> int:
 func _check_winner() -> void:
 	if _team_health("enemy") <= 0:
 		game_over = true
-		message = "VICTORY! THE ENEMY CASTLE FELL!"
+		message = "VICTORY! +%d GOLD - TAP NEXT LEVEL" % (100 + level * 25)
+		if not reward_claimed:
+			gold += 100 + level * 25
+			best_level = maxi(best_level, level + 1)
+			reward_claimed = true
+			_save_progress()
+		next_button.disabled = false
 	elif _team_health("player") <= 0:
 		game_over = true
-		message = "DEFEAT! YOUR CASTLE WAS DESTROYED."
+		message = "YOUR CASTLE FELL - TRY AGAIN"
+		next_button.disabled = true
 
 func _update_hud() -> void:
 	if not is_instance_valid(score_label):
 		return
-	player_label.text = "YOUR CASTLE  %d%%" % roundi(float(_team_health("player")) / 35.0 * 100.0)
-	enemy_label.text = "ENEMY CASTLE  %d%%" % roundi(float(_team_health("enemy")) / 35.0 * 100.0)
-	score_label.text = "SCORE  %d" % score
+	var player_max := 0
+	var enemy_max := 0
+	for block in blocks:
+		if block["team"] == "player":
+			player_max += int(block["max_hp"])
+		else:
+			enemy_max += int(block["max_hp"])
+	var player_percent := 0 if player_max == 0 else roundi(float(_team_health("player")) / float(player_max) * 100.0)
+	var enemy_percent := 0 if enemy_max == 0 else roundi(float(_team_health("enemy")) / float(enemy_max) * 100.0)
+	player_label.text = "YOUR FORT %d%%" % player_percent
+	enemy_label.text = "ENEMY FORT %d%%" % enemy_percent
+	level_label.text = "LEVEL %d" % level
+	score_label.text = "SCORE %d" % score
+	gold_label.text = "GOLD %d" % gold
+	var weapon: Dictionary = WEAPONS[weapon_index]
+	weapon_button.text = "%s  x%d" % [weapon["name"], int(ammo.get(weapon["id"], 0))]
+	upgrade_button.text = "CANNON L%d • %dG" % [cannon_level, cannon_level * 80]
+	fire_button.text = "FIRE %s" % weapon["name"]
 	status_label.text = message
 
 func _draw() -> void:
 	var size := get_viewport_rect().size
-	var sky := Color("#8bd0ef")
+	var sky := Color("#83c9eb")
 	draw_rect(Rect2(Vector2.ZERO, size), sky)
+	# Distant mountains and sun.
 	draw_circle(Vector2(1080.0, 125.0), 48.0, Color("#ffe58a"))
+	draw_colored_polygon(PackedVector2Array([Vector2(0, 430), Vector2(190, 230), Vector2(390, 430)]), Color("#a4c8b2"))
+	draw_colored_polygon(PackedVector2Array([Vector2(330, 440), Vector2(590, 190), Vector2(850, 440)]), Color("#9abca9"))
+	draw_colored_polygon(PackedVector2Array([Vector2(790, 430), Vector2(1040, 220), Vector2(1280, 430)]), Color("#a4c8b2"))
 	for cloud_x in [100.0, 430.0, 780.0]:
 		draw_circle(Vector2(cloud_x, 120.0), 25.0, Color("#f4fbff"))
 		draw_circle(Vector2(cloud_x + 25.0, 110.0), 31.0, Color("#f4fbff"))
 		draw_circle(Vector2(cloud_x + 52.0, 122.0), 23.0, Color("#f4fbff"))
-	draw_rect(Rect2(0.0, FLOOR_Y, size.x, size.y - FLOOR_Y), Color("#77b957"))
+	draw_rect(Rect2(0.0, FLOOR_Y, size.x, size.y - FLOOR_Y), Color("#78b95a"))
 	draw_rect(Rect2(0.0, FLOOR_Y + 14.0, size.x, 18.0), Color("#568b42"))
-	# Distant hills
 	draw_circle(Vector2(350.0, 575.0), 160.0, Color("#91c875"))
 	draw_circle(Vector2(900.0, 580.0), 190.0, Color("#91c875"))
+	_draw_castle_details()
 	for block in blocks:
 		var rect: Rect2 = block["rect"]
-		var team_color := Color("#c78b4c") if block["team"] == "player" else Color("#969eae")
-		draw_rect(rect, team_color)
-		draw_rect(Rect2(rect.position + Vector2(2, 2), Vector2(rect.size.x - 4, 4)), team_color.lightened(0.35))
-		draw_rect(rect, Color("#614c3b"), false, 2.0)
-		if int(block["hp"]) > 1:
+		var is_player: bool = block["team"] == "player"
+		var base_color := Color("#c68a4c") if is_player else Color("#8994a6")
+		if block["kind"] == "tower":
+			base_color = Color("#a66e3e") if is_player else Color("#69788d")
+		var hp_ratio := float(block["hp"]) / float(block["max_hp"])
+		if hp_ratio < 0.5:
+			base_color = base_color.darkened(0.25)
+		draw_rect(rect, base_color)
+		draw_rect(Rect2(rect.position + Vector2(2, 2), Vector2(rect.size.x - 4, 4)), base_color.lightened(0.35))
+		draw_rect(rect, Color("#514437"), false, 2.0)
+		if int(block["max_hp"]) > 1:
 			draw_rect(Rect2(rect.position + Vector2(4, rect.size.y - 5), Vector2(rect.size.x - 8, 3)), Color("#6c302b"))
-	# Cannons
 	_draw_cannon(PLAYER_CANNON, Color("#245b8c"), false)
 	_draw_cannon(ENEMY_CANNON, Color("#9c3434"), true)
+	_draw_soldiers()
 	for shot in projectiles:
 		var color := Color("#ed563b") if shot["team"] == "enemy" else Color("#27384b")
+		if shot["kind"] == "fire":
+			color = Color("#ff762e")
 		draw_circle(shot["pos"], float(shot["radius"]), color)
 		draw_circle(shot["pos"] + Vector2(-2, -2), float(shot["radius"]) * 0.35, Color("#f8d58a"))
-	for p in particles:
-		draw_rect(Rect2(p["pos"], Vector2.ONE * float(p["size"])), Color("#9a6842", clampf(float(p["life"]) * 2.0, 0.0, 1.0)))
+	for particle in particles:
+		draw_rect(Rect2(particle["pos"], Vector2.ONE * float(particle["size"])), particle["color"])
+	if aiming:
+		draw_line(PLAYER_CANNON, aim_point, Color("#fff3a3"), 5.0)
+		draw_circle(aim_point, 9.0, Color("#fff3a3"))
+		var direction := (aim_point - PLAYER_CANNON).normalized()
+		var preview := PLAYER_CANNON + direction * 95.0
+		draw_line(PLAYER_CANNON, preview, Color("#ffffff", 0.6), 3.0)
+
+func _draw_castle_details() -> void:
+	# Flags and crenellations give the two forts distinct silhouettes.
+	for team_x in [90.0, 1010.0]:
+		var flag_x := team_x + 60.0
+		var flag_y := FLOOR_Y - 25.0 - 5.0 * 25.0 - 58.0
+		draw_line(Vector2(flag_x, flag_y + 45.0), Vector2(flag_x, flag_y - 8.0), Color("#59483c"), 4.0)
+		var flag_color := Color("#2563a6") if team_x < 500.0 else Color("#b91c1c")
+		draw_colored_polygon(PackedVector2Array([Vector2(flag_x, flag_y - 8.0), Vector2(flag_x + 38.0, flag_y + 1.0), Vector2(flag_x, flag_y + 12.0)]), flag_color)
+		for i in range(5):
+			var crenel_x := team_x + float(i) * 24.0
+			draw_rect(Rect2(crenel_x + 2.0, FLOOR_Y - 25.0 - 5.0 * 25.0 - 9.0, 10.0, 10.0), Color("#b9824c") if team_x < 500.0 else Color("#8994a6"))
+
+func _draw_soldiers() -> void:
+	for i in range(4):
+		_draw_soldier(Vector2(55.0 + float(i) * 24.0, 540.0), Color("#2563a6"))
+		_draw_soldier(Vector2(1160.0 + float(i) * 19.0, 540.0), Color("#b91c1c"))
+
+func _draw_soldier(pos: Vector2, color: Color) -> void:
+	draw_circle(pos + Vector2(0, -14), 7.0, Color("#f0c7a0"))
+	draw_rect(Rect2(pos.x - 6.0, pos.y - 8.0, 12.0, 18.0), color)
+	draw_line(pos + Vector2(-3, 10), pos + Vector2(-7, 19), Color("#30343b"), 3.0)
+	draw_line(pos + Vector2(3, 10), pos + Vector2(7, 19), Color("#30343b"), 3.0)
+	draw_line(pos + Vector2(4, -5), pos + Vector2(13, -17), Color("#514437"), 3.0)
 
 func _draw_cannon(pos: Vector2, color: Color, flip: bool) -> void:
 	draw_circle(pos + Vector2(0, 12), 24.0, Color("#364451"))
