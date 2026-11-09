@@ -253,8 +253,8 @@ func _check_winner() -> void:
 func _update_hud() -> void:
 	if not is_instance_valid(score_label):
 		return
-	player_label.text = "YOUR CASTLE  %d%%" % roundi(float(_team_health("player")) / 60.0 * 100.0)
-	enemy_label.text = "ENEMY CASTLE  %d%%" % roundi(float(_team_health("enemy")) / 60.0 * 100.0)
+	player_label.text = "YOUR CASTLE  %d%%" % roundi(float(_team_health("player")) / 35.0 * 100.0)
+	enemy_label.text = "ENEMY CASTLE  %d%%" % roundi(float(_team_health("enemy")) / 35.0 * 100.0)
 	score_label.text = "SCORE  %d" % score
 	status_label.text = message
 
