@@ -26,6 +26,8 @@ var ammo: Dictionary = {"stone": 999, "bomb": 12, "fire": 8}
 var weapon_index := 0
 var elapsed := 0.0
 var enemy_cooldown := 2.5
+var player_max_health := 1
+var enemy_max_health := 1
 var game_over := false
 var paused := false
 var reward_claimed := false
@@ -182,6 +184,8 @@ func _new_game() -> void:
 	ammo = {"stone": 999, "bomb": 12 + level, "fire": 8 + int(level / 2)}
 	_add_castle(90.0, "player", wall_level)
 	_add_castle(1010.0, "enemy", 1 + int((level - 1) / 3))
+	player_max_health = _team_health("player")
+	enemy_max_health = _team_health("enemy")
 	next_button.disabled = true
 	_update_hud()
 	queue_redraw()
@@ -449,15 +453,8 @@ func _check_winner() -> void:
 func _update_hud() -> void:
 	if not is_instance_valid(score_label):
 		return
-	var player_max := 0
-	var enemy_max := 0
-	for block in blocks:
-		if block["team"] == "player":
-			player_max += int(block["max_hp"])
-		else:
-			enemy_max += int(block["max_hp"])
-	var player_percent := 0 if player_max == 0 else roundi(float(_team_health("player")) / float(player_max) * 100.0)
-	var enemy_percent := 0 if enemy_max == 0 else roundi(float(_team_health("enemy")) / float(enemy_max) * 100.0)
+	var player_percent := roundi(float(_team_health("player")) / float(maxi(1, player_max_health)) * 100.0)
+	var enemy_percent := roundi(float(_team_health("enemy")) / float(maxi(1, enemy_max_health)) * 100.0)
 	player_label.text = "YOUR FORT %d%%" % player_percent
 	enemy_label.text = "ENEMY FORT %d%%" % enemy_percent
 	level_label.text = "LEVEL %d" % level
@@ -517,7 +514,7 @@ func _draw() -> void:
 		draw_circle(aim_point, 9.0, Color("#fff3a3"))
 		var direction := (aim_point - PLAYER_CANNON).normalized()
 		var preview := PLAYER_CANNON + direction * 95.0
-		draw_line(PLAYER_CANNON, preview, Color("#ffffff", 0.6), 3.0)
+		draw_line(PLAYER_CANNON, preview, Color("#ffffff").with_alpha(0.6), 3.0)
 
 func _draw_castle_details() -> void:
 	# Flags and crenellations give the two forts distinct silhouettes.
