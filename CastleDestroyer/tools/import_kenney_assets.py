@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Safely stage official Kenney ZIP packs into the Godot project.
+"""Safely extract official Kenney CC0 ZIP packs outside the Godot project.
 
 Usage:
-  python3 tools/import_kenney_assets.py castle /path/to/kenney_castle-kit.zip
-  python3 tools/import_kenney_assets.py ui /path/to/kenney_ui-pack.zip
+  python3 tools/import_kenney_assets.py castle /path/to/kenney_castle-kit.zip --destination-root /tmp/kenney-source
+  python3 tools/import_kenney_assets.py ui /path/to/kenney_ui-pack.zip --destination-root /tmp/kenney-source
 
-The original archive is not modified. The pack's License.txt is retained.
+Only the optimized runtime selection is copied into the Godot project later.
+The original archive and its full source pack remain outside the project tree.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
@@ -36,7 +38,7 @@ def safe_member_path(name: str) -> PurePosixPath:
     return path
 
 
-def import_pack(kind: str, archive_path: Path) -> Path:
+def import_pack(kind: str, archive_path: Path, destination_root: Path | None = None) -> Path:
     if kind not in DESTINATIONS:
         raise ValueError(f"Unknown pack kind: {kind}")
     archive_path = archive_path.resolve(strict=True)
@@ -44,7 +46,9 @@ def import_pack(kind: str, archive_path: Path) -> Path:
         raise ValueError(f"Not a valid ZIP archive: {archive_path}")
 
     folder, title, source = DESTINATIONS[kind]
-    destination = PROJECT_ROOT / "assets" / "vendor" / folder
+    root = Path(destination_root).resolve() if destination_root else PROJECT_ROOT / "assets" / "vendor"
+    root.mkdir(parents=True, exist_ok=True)
+    destination = root / folder
     staging = destination.with_name(destination.name + ".staging")
     if staging.exists():
         shutil.rmtree(staging)
@@ -69,7 +73,6 @@ def import_pack(kind: str, archive_path: Path) -> Path:
 
             for member in members:
                 relative = safe_member_path(member.filename)
-                # Reject Unix symlinks instead of materializing links.
                 unix_mode = (member.external_attr >> 16) & 0o170000
                 if unix_mode == 0o120000:
                     raise ValueError(f"Symlink in ZIP is not allowed: {member.filename}")
@@ -83,8 +86,8 @@ def import_pack(kind: str, archive_path: Path) -> Path:
             "source": source,
             "license": "CC0 1.0",
             "archive": archive_path.name,
-            "archive_sha256": __import__("hashlib").sha256(archive_path.read_bytes()).hexdigest(),
-            "imported_into": f"res://assets/vendor/{folder}/",
+            "archive_sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
+            "imported_into": str(destination),
         }
         (staging / "SOURCE_METADATA.json").write_text(
             json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
@@ -102,13 +105,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("kind", choices=sorted(DESTINATIONS))
     parser.add_argument("archive", type=Path)
+    parser.add_argument("--destination-root", type=Path, default=None,
+                        help="Extract full source outside the Godot project (recommended for CI).")
     args = parser.parse_args()
     try:
-        result = import_pack(args.kind, args.archive)
+        result = import_pack(args.kind, args.archive, args.destination_root)
     except Exception as exc:
         print(f"IMPORT FAILED: {exc}", file=sys.stderr)
         return 1
-    print(f"Imported {args.kind} assets to {result.relative_to(PROJECT_ROOT)}")
+    print(f"Imported {args.kind} assets to {result}")
     return 0
 
 
