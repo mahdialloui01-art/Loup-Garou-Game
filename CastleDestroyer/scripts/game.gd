@@ -197,16 +197,28 @@ func _make_button(value: String, color: Color) -> Button:
 	button.add_theme_stylebox_override("pressed", _button_style(color.darkened(0.15)))
 	return button
 
-func _button_style(color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.corner_radius_top_left = 11
-	style.corner_radius_top_right = 11
-	style.corner_radius_bottom_left = 11
-	style.corner_radius_bottom_right = 11
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	return style
+func _button_style(color: Color) -> StyleBox:
+	var button_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png") as Texture2D
+	if button_texture != null:
+		var textured := StyleBoxTexture.new()
+		textured.texture = button_texture
+		textured.modulate_color = color
+		textured.texture_margin_left = 16.0
+		textured.texture_margin_right = 16.0
+		textured.texture_margin_top = 12.0
+		textured.texture_margin_bottom = 12.0
+		textured.content_margin_left = 10.0
+		textured.content_margin_right = 10.0
+		return textured
+	var fallback := StyleBoxFlat.new()
+	fallback.bg_color = color
+	fallback.corner_radius_top_left = 11
+	fallback.corner_radius_top_right = 11
+	fallback.corner_radius_bottom_left = 11
+	fallback.corner_radius_bottom_right = 11
+	fallback.content_margin_left = 10
+	fallback.content_margin_right = 10
+	return fallback
 
 func _load_progress() -> void:
 	var config := ConfigFile.new()
