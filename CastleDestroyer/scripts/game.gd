@@ -158,7 +158,11 @@ func _build_3d_battlefield() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#c4d4df")
-	environment.ambient_light_energy = 0.75
+	environment.ambient_light_energy = 0.9
+	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	environment.fog_enabled = true
+	environment.fog_light_color = Color("#a9bac0")
+	environment.fog_density = 0.006
 	environment_node.environment = environment
 	world.add_child(environment_node)
 
@@ -181,6 +185,7 @@ func _build_3d_battlefield() -> void:
 	ground.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01, 0.0)
 	world.add_child(ground)
 	_build_terrain_detail(world)
+	_build_distant_landscape(world)
 
 	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, -5.45, -0.7), Vector3(0.55, 0.55, 0.55), 180.0)
 	_add_battlefield_prop(world, "models/avramania-boulder.glb", Vector3(0.45, -5.46, -1.2), Vector3(0.75, 0.75, 0.75))
@@ -197,7 +202,7 @@ func _build_3d_battlefield() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	# Tactical elevated 3D overview: the camera looks down across the full siege lane.
 	camera.size = 8.4
-	camera.position = Vector3(6.4, 5.8, 12.2)
+	camera.position = Vector3(6.4, 7.5, 10.8)
 	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	camera.current = true
 	world.add_child(camera)
@@ -309,6 +314,35 @@ void fragment() {
 	pebble_instance.multimesh = pebbles
 	world.add_child(pebble_instance)
 
+
+func _build_distant_landscape(world: Node3D) -> void:
+	# Layered 3D hills, tree lines and rock clusters give the battlefield real depth.
+	var hill_colors := [Color("#536d45"), Color("#687b4c"), Color("#7c8654")]
+	for i in range(8):
+		var hill := MeshInstance3D.new()
+		hill.name = "DistantRollingHill_%02d" % i
+		var hill_mesh := SphereMesh.new()
+		hill_mesh.radius = 1.0
+		hill_mesh.height = 1.0
+		var hill_material := StandardMaterial3D.new()
+		hill_material.albedo_color = hill_colors[i % hill_colors.size()]
+		hill_material.roughness = 1.0
+		hill_mesh.material = hill_material
+		hill.mesh = hill_mesh
+		hill.scale = Vector3(randf_range(1.3, 2.2), randf_range(0.55, 0.9), randf_range(0.45, 0.75))
+		hill.position = Vector3(-1.1 + float(i) * 2.0, -4.95 + randf_range(-0.15, 0.18), -3.5 - randf_range(0.0, 0.8))
+		world.add_child(hill)
+	for tree_position in [
+		Vector3(1.8, -5.25, -2.8), Vector3(3.4, -5.25, -3.0),
+		Vector3(5.4, -5.25, -3.2), Vector3(7.8, -5.25, -3.0),
+		Vector3(9.4, -5.25, -2.8), Vector3(11.0, -5.25, -3.1)
+	]:
+		_add_battlefield_prop(world, "models/tree-large.glb", tree_position, Vector3(0.38, 0.42, 0.38), randf_range(-18.0, 18.0))
+	for rock_position in [
+		Vector3(2.7, -5.5, -1.9), Vector3(4.3, -5.5, -2.0),
+		Vector3(8.8, -5.5, -1.8), Vector3(10.2, -5.5, -2.1)
+	]:
+		_add_battlefield_prop(world, "models/rocks-large.glb", rock_position, Vector3(0.24, 0.24, 0.24), randf_range(0.0, 360.0))
 
 func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
 	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
@@ -1129,7 +1163,7 @@ func _animate_battlefield(delta: float) -> void:
 	if is_instance_valid(sun_light):
 		sun_light.rotation_degrees.z = -32.0 + sin(battlefield_time * 0.12) * 3.0
 	if is_instance_valid(main_camera):
-		var target := Vector3(6.4, 5.8, 12.2)
+		var target := Vector3(6.4, 7.5, 10.8)
 		var target_size := 8.4
 		if camera_mode == 1:
 			target = Vector3(3.2, 3.6, 8.0)
