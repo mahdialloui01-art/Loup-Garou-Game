@@ -165,10 +165,14 @@ func _build_3d_battlefield() -> void:
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("#4b86b9")
-	sky_material.sky_horizon_color = Color("#d5e5ed")
+	sky_material.sky_top_color = Color("#347fbd")
+	sky_material.sky_horizon_color = Color("#d9e9f2")
 	sky_material.ground_bottom_color = Color("#344b39")
 	sky_material.ground_horizon_color = Color("#8b9b83")
+	# Render a visible solar disc in the procedural sky, aligned with the sun light.
+	sky_material.sun_angle_max = 1.35
+	sky_material.sun_curve = 0.12
+	sky_material.use_debanding = true
 	sky.sky_material = sky_material
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -202,16 +206,18 @@ func _build_3d_battlefield() -> void:
 	world.add_child(sun)
 	sun_light = sun
 
+	# A continuous world-sized ground replaces the old narrow floating slab.
+	# The playable lane sits on this terrain, which continues far beyond the camera view.
 	var ground := MeshInstance3D.new()
-	ground.name = "SideViewGround"
+	ground.name = "ContinuousWorldGround"
 	var ground_mesh := BoxMesh.new()
-	ground_mesh.size = Vector3(16.0, 0.18, 1.2)
+	ground_mesh.size = Vector3(240.0, 0.5, 240.0)
 	var ground_material := StandardMaterial3D.new()
-	ground_material.albedo_color = Color("#789b4d")
-	ground_material.roughness = 0.92
+	ground_material.albedo_color = Color("#71864d")
+	ground_material.roughness = 1.0
 	ground_mesh.material = ground_material
 	ground.mesh = ground_mesh
-	ground.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01, 0.0)
+	ground.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01 - 0.25, -45.0)
 	world.add_child(ground)
 	_build_terrain_detail(world)
 	_build_distant_landscape(world)
@@ -264,17 +270,18 @@ func _build_terrain_detail(world: Node3D) -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "GrassAndGravelTerrain"
 	var terrain_mesh := PlaneMesh.new()
-	terrain_mesh.size = Vector2(16.0, 5.2)
+	# Continue the textured ground to the horizon in every direction.
+	terrain_mesh.size = Vector2(240.0, 240.0)
 	terrain.mesh = terrain_mesh
-	terrain.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01 + 0.095, 0.0)
+	terrain.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01 - 0.245, -45.0)
 	var terrain_shader := Shader.new()
 	terrain_shader.code = """
 shader_type spatial;
 render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 void fragment() {
-	vec2 cell = floor(UV * vec2(180.0, 58.0));
+	vec2 cell = floor(UV * vec2(2700.0, 2700.0));
 	float grain = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
-	float broad = sin(UV.x * 31.0) * cos(UV.y * 19.0);
+	float broad = sin(UV.x * 465.0) * cos(UV.y * 876.0);
 	vec3 grass_a = vec3(0.19, 0.31, 0.12);
 	vec3 grass_b = vec3(0.31, 0.40, 0.17);
 	vec3 gravel = vec3(0.39, 0.36, 0.28);
@@ -372,6 +379,25 @@ func _build_distant_landscape(world: Node3D) -> void:
 		Vector3(8.8, -5.5, -1.8), Vector3(10.2, -5.5, -2.1)
 	]:
 		_add_battlefield_prop(world, "models/rocks-large.glb", rock_position, Vector3(0.24, 0.24, 0.24), randf_range(0.0, 360.0))
+	# A broad natural ridgeline closes the distant horizon without exposing a platform edge.
+	for i in range(14):
+		var ridge := MeshInstance3D.new()
+		ridge.name = "FarHorizonHill_%02d" % i
+		var ridge_mesh := SphereMesh.new()
+		ridge_mesh.radius = 1.0
+		ridge_mesh.height = 1.0
+		var ridge_material := StandardMaterial3D.new()
+		ridge_material.albedo_color = hill_colors[(i + 1) % hill_colors.size()].lightened(0.08)
+		ridge_material.roughness = 1.0
+		ridge_mesh.material = ridge_material
+		ridge.mesh = ridge_mesh
+		ridge.scale = Vector3(randf_range(4.5, 7.5), randf_range(2.4, 3.8), randf_range(3.0, 5.0))
+		ridge.position = Vector3(-20.0 + float(i) * 4.0, -2.0 - randf_range(0.0, 0.7), -43.0 - randf_range(0.0, 5.0))
+		world.add_child(ridge)
+	# Distant tree silhouettes add depth along the new horizon.
+	for i in range(12):
+		var far_tree_x := -17.0 + float(i) * 4.2
+		_add_battlefield_prop(world, "models/tree-large.glb", Vector3(far_tree_x, -5.45, -27.0), Vector3(0.52, 0.62, 0.52), randf_range(-22.0, 22.0))
 
 func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
 	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
