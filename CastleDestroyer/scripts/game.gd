@@ -99,11 +99,12 @@ var camera_test_button: Button
 func _ready() -> void:
 	randomize()
 	_load_progress()
+	_build_3d_battlefield()
 	physics_root = Node3D.new()
 	physics_root.name = "FortPhysics"
-	add_child(physics_root)
+	var battlefield_world := battlefield_viewport.get_child(0) as Node3D
+	battlefield_world.add_child(physics_root)
 	_create_physics_floor()
-	_build_3d_battlefield()
 	_build_ui()
 	_new_game()
 	set_process(true)
@@ -164,6 +165,8 @@ func _build_3d_battlefield() -> void:
 		Vector3(-0.25, -5.45, -0.9), Vector3(12.9, -5.45, -0.9)
 	]:
 		_add_battlefield_prop(world, "models/tree-large.glb", tree_position, Vector3(0.55, 0.55, 0.55))
+	_add_battlefield_castle_details(90.0, "player")
+	_add_battlefield_castle_details(1010.0, "enemy")
 
 	var camera := Camera3D.new()
 	camera.name = "MainBattlefieldCamera"
@@ -368,7 +371,6 @@ func _add_castle(origin_x: float, team: String, armor_level: int) -> void:
 	blocks.append(_make_block(tower_rect, team, armor_level + 2, armor_level + 2, "tower"))
 	var mast_rect := Rect2(origin_x + 49.0, FLOOR_Y - 25.0 - float(rows) * 25.0 - 45.0, 22.0, 45.0)
 	blocks.append(_make_block(mast_rect, team, armor_level + 1, armor_level + 1, "tower"))
-	_add_battlefield_castle_details(origin_x, team)
 
 func _create_physics_floor() -> void:
 	floor_body = StaticBody3D.new()

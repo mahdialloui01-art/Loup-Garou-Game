@@ -42,6 +42,12 @@ func _run_test() -> void:
 		push_error("Main 3D battlefield world/camera is missing")
 		quit(1)
 		return
+	for block in game.blocks:
+		var body: StaticBody3D = block.get("body")
+		if body.get_viewport() != game.battlefield_viewport:
+			push_error("Destructible 3D castle body is outside the battlefield SubViewport")
+			quit(1)
+			return
 	print("Main 3D destructible castle integration tests passed: %d live 3D blocks." % mesh_count)
 	game.queue_free()
 	quit(0)
