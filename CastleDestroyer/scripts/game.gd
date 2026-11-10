@@ -106,6 +106,12 @@ var fire_button: Button
 var upgrade_button: Button
 var next_button: Button
 var camera_test_button: Button
+var game_hud: Array[Control] = []
+var main_menu: Control
+var settings_panel: PanelContainer
+var game_started := false
+var music_enabled := true
+var sound_enabled := true
 
 func _ready() -> void:
 	randomize()
@@ -118,6 +124,8 @@ func _ready() -> void:
 	_create_physics_floor()
 	_build_ui()
 	_new_game()
+	_build_main_menu()
+	_set_game_hud_visible(false)
 	set_process(true)
 
 
@@ -126,7 +134,8 @@ func _build_3d_battlefield() -> void:
 	# The current hit-testing and structural graph remain authoritative.
 	battlefield_viewport = SubViewport.new()
 	battlefield_viewport.name = "Battlefield3DViewport"
-	battlefield_viewport.size = Vector2i(1280, 720)
+	var initial_size := get_viewport_rect().size
+	battlefield_viewport.size = Vector2i(maxi(roundi(initial_size.x), 1), maxi(roundi(initial_size.y), 1))
 	battlefield_viewport.disable_3d = false
 	battlefield_viewport.transparent_bg = false
 	battlefield_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -401,6 +410,7 @@ func _build_ui() -> void:
 	top.offset_bottom = 56
 	top.add_theme_constant_override("separation", 16)
 	add_child(top)
+	game_hud.append(top)
 
 	player_label = _make_label("YOUR FORT 100%", 18)
 	top.add_child(player_label)
@@ -427,6 +437,7 @@ func _build_ui() -> void:
 	status_label.offset_right = 420
 	status_label.offset_bottom = 102
 	add_child(status_label)
+	game_hud.append(status_label)
 
 	var controls := HBoxContainer.new()
 	controls.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -437,6 +448,7 @@ func _build_ui() -> void:
 	controls.offset_right = -12
 	controls.offset_bottom = -10
 	add_child(controls)
+	game_hud.append(controls)
 
 	weapon_button = _make_button("WEAPON: STONE", Color("#334155"))
 	weapon_button.pressed.connect(_cycle_weapon)
@@ -460,6 +472,148 @@ func _build_ui() -> void:
 	camera_test_button.custom_minimum_size = Vector2(140.0, 54.0)
 	camera_test_button.pressed.connect(_open_camera_test)
 	controls.add_child(camera_test_button)
+
+""")
+func _set_game_hud_visible(is_visible: bool) -> void:
+	for item in game_hud:
+		if is_instance_valid(item):
+			item.visible = is_visible
+
+func _build_main_menu() -> void:
+	main_menu = Control.new()
+	main_menu.name = "MainMenuScreen"
+	main_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	main_menu.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(main_menu)
+
+	var shade := ColorRect.new()
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.color = Color(0.035, 0.055, 0.075, 0.84)
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	main_menu.add_child(shade)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	main_menu.add_child(center)
+
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(360.0, 0.0)
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	card.add_theme_stylebox_override("panel", _menu_panel_style())
+	center.add_child(card)
+
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 16)
+	content.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_child(content)
+
+	var title := Label.new()
+	title.text = "CASTLE\nDESTROYER"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", Color("#f4d49b"))
+	title.add_theme_color_override("font_shadow_color", Color("#171d26"))
+	title.add_theme_constant_override("shadow_offset_x", 2)
+	title.add_theme_constant_override("shadow_offset_y", 3)
+	content.add_child(title)
+
+	var subtitle := Label.new()
+	subtitle.text = "3D MEDIEVAL SIEGE"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 15)
+	subtitle.add_theme_color_override("font_color", Color("#cbd5e1"))
+	content.add_child(subtitle)
+
+	var start_button := _make_button("START BATTLE", Color("#9b642d"))
+	start_button.custom_minimum_size = Vector2(280.0, 62.0)
+	start_button.pressed.connect(_start_game)
+	content.add_child(start_button)
+
+	var settings_button := _make_button("SETTINGS", Color("#475569"))
+	settings_button.custom_minimum_size = Vector2(280.0, 54.0)
+	settings_button.pressed.connect(_show_settings)
+	content.add_child(settings_button)
+
+	var exit_button := _make_button("EXIT GAME", Color("#7f3434"))
+	exit_button.custom_minimum_size = Vector2(280.0, 54.0)
+	exit_button.pressed.connect(_exit_game)
+	content.add_child(exit_button)
+
+	var footer := Label.new()
+	footer.text = "BUILD • DEFEND • DESTROY"
+	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	footer.add_theme_font_size_override("font_size", 12)
+	footer.add_theme_color_override("font_color", Color("#aab7c5"))
+	content.add_child(footer)
+
+	settings_panel = PanelContainer.new()
+	settings_panel.name = "SettingsPanel"
+	settings_panel.visible = false
+	settings_panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	settings_panel.offset_left = -175
+	settings_panel.offset_top = -135
+	settings_panel.offset_right = 175
+	settings_panel.offset_bottom = 135
+	settings_panel.add_theme_stylebox_override("panel", _menu_panel_style())
+	main_menu.add_child(settings_panel)
+
+	var settings_content := VBoxContainer.new()
+	settings_content.add_theme_constant_override("separation", 14)
+	settings_panel.add_child(settings_content)
+	var settings_title := Label.new()
+	settings_title.text = "SETTINGS"
+	settings_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settings_title.add_theme_font_size_override("font_size", 28)
+	settings_title.add_theme_color_override("font_color", Color("#f4d49b"))
+	settings_content.add_child(settings_title)
+
+	var music_button := _make_button("MUSIC: ON", Color("#475569"))
+	music_button.pressed.connect(func():
+		music_enabled = not music_enabled
+		music_button.text = "MUSIC: " + ("ON" if music_enabled else "OFF")
+	)
+	settings_content.add_child(music_button)
+
+	var sound_button := _make_button("SOUND: ON", Color("#475569"))
+	sound_button.pressed.connect(func():
+		sound_enabled = not sound_enabled
+		sound_button.text = "SOUND: " + ("ON" if sound_enabled else "OFF")
+	)
+	settings_content.add_child(sound_button)
+
+	var back_button := _make_button("BACK", Color("#8b5e34"))
+	back_button.pressed.connect(func(): settings_panel.visible = false)
+	settings_content.add_child(back_button)
+
+func _menu_panel_style() -> StyleBox:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#202b36")
+	style.border_color = Color("#b58a52")
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(18)
+	style.content_margin_left = 28
+	style.content_margin_right = 28
+	style.content_margin_top = 26
+	style.content_margin_bottom = 26
+	return style
+
+func _start_game() -> void:
+	game_started = true
+	main_menu.visible = false
+	_set_game_hud_visible(true)
+	_new_game()
+
+func _show_settings() -> void:
+	settings_panel.visible = true
+
+func _exit_game() -> void:
+	get_tree().quit()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and is_instance_valid(battlefield_viewport):
+		var viewport_size := get_viewport_rect().size
+		battlefield_viewport.size = Vector2i(maxi(roundi(viewport_size.x), 1), maxi(roundi(viewport_size.y), 1))
+		queue_redraw()
 
 func _make_label(value: String, font_size: int) -> Label:
 	var label := Label.new()
@@ -847,7 +1001,7 @@ func _screen_to_battlefield(screen_position: Vector2) -> Vector2:
 	var control_size := get_viewport_rect().size
 	if control_size.x <= 0.0 or control_size.y <= 0.0:
 		return screen_position
-	var viewport_position := screen_position * Vector2(1280.0, 720.0) / control_size
+	var viewport_position := screen_position * Vector2(battlefield_viewport.size) / control_size
 	var ray_origin := main_camera.project_ray_origin(viewport_position)
 	var ray_direction := main_camera.project_ray_normal(viewport_position)
 	if absf(ray_direction.z) < 0.0001:
@@ -859,6 +1013,8 @@ func _screen_to_battlefield(screen_position: Vector2) -> Vector2:
 	return Vector2(world_point.x * 100.0, -world_point.y * 100.0)
 
 func _input(event: InputEvent) -> void:
+	if not game_started:
+		return
 	if event is InputEventMagnifyGesture:
 		var magnify := event as InputEventMagnifyGesture
 		camera_zoom = clampf(camera_zoom / maxf(magnify.factor, 0.1), 0.62, 1.55)
@@ -941,6 +1097,8 @@ func _end_aim(pos: Vector2) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	if not game_started:
+		return
 	_animate_battlefield(delta)
 	if paused or game_over:
 		return
