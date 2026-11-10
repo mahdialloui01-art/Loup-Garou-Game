@@ -249,7 +249,7 @@ func _build_3d_battlefield() -> void:
 	# Tactical elevated 3D overview: the camera looks down across the full siege lane.
 	camera.size = 8.4
 	# Lower, shallower camera angle deliberately exposes the sky above the horizon.
-	camera.position = Vector3(6.4, -0.5, 14.5)
+	camera.position = Vector3(6.4, 7.5, 14.5)
 	camera.current = true
 	world.add_child(camera)
 	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
@@ -1276,15 +1276,15 @@ func _animate_battlefield(delta: float) -> void:
 	if is_instance_valid(sun_light):
 		sun_light.rotation_degrees.z = -32.0 + sin(battlefield_time * 0.12) * 3.0
 	if is_instance_valid(main_camera):
-		var target := Vector3(6.4, -0.5, 14.5)
+		var target := Vector3(6.4, 7.5, 14.5)
 		var target_size := 8.4
 		if camera_mode == 1:
-			target = Vector3(3.2, -1.0, 12.0)
+			target = Vector3(3.2, 7.5, 12.0)
 			target_size = 5.4
 		elif camera_mode == 2:
-			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, -0.7, 15.5)
+			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, 8.0, 15.5)
 			target_size = 7.2
-		var focus := Vector3(6.4, -3.6, 0.0)
+		var focus := Vector3(6.4, -1.0, 0.0)
 		var base_offset := target - focus
 		var radius := base_offset.length()
 		var yaw := atan2(base_offset.x, base_offset.z) + camera_orbit_yaw
