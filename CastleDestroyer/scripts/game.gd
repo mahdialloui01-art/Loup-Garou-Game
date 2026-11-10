@@ -576,7 +576,7 @@ func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) 
 	body.add_child(collision)
 
 	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.name = "MortarBed"
+	mesh_instance.name = "DestructibleStoneMesh"
 	var mortar_mesh := BoxMesh.new()
 	mortar_mesh.size = shape.size * Vector3(1.0, 1.0, 0.92)
 	var mortar_material := StandardMaterial3D.new()
