@@ -105,8 +105,18 @@ jobs:
         run: python3 -m unittest discover -s CastleDestroyer/tests -p 'kenney_runtime_test.py' -v
       - name: Test asset importer safety
         run: python3 -m unittest discover -s CastleDestroyer/tests -p 'asset_importer_test.py' -v
-      - name: Import and validate game
-        run: godot --headless --editor --path CastleDestroyer --quit
+      - name: Import and validate game with a real OpenGL context
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y xvfb
+          fi
+          set -o pipefail
+          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 godot --editor --path CastleDestroyer --quit 2>&1 | tee "$RUNNER_TEMP/godot-import.log"
+          if grep -E "Can't open file|Error importing|Failed loading resource|Parameter \\"t\\" is null" "$RUNNER_TEMP/godot-import.log"; then
+            echo "Godot reported a missing asset or texture import error."
+            exit 1
+          fi
       - name: Strict GDScript parse check
         run: godot --headless --path CastleDestroyer --check-only --script res://scripts/game.gd
       - name: Strict camera preview script parse check
