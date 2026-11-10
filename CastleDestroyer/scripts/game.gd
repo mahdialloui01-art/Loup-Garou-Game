@@ -154,6 +154,7 @@ func _build_3d_battlefield() -> void:
 	var environment_node := WorldEnvironment.new()
 	environment_node.name = "WorldEnvironment"
 	var environment := Environment.new()
+	# Cinematic but mobile-friendly image-based ambience.
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_material := ProceduralSkyMaterial.new()
@@ -165,18 +166,24 @@ func _build_3d_battlefield() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#c4d4df")
-	environment.ambient_light_energy = 0.9
+	environment.ambient_light_energy = 1.05
+	environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
 	environment.fog_light_color = Color("#a9bac0")
-	environment.fog_density = 0.006
+	environment.fog_density = 0.0045
+	environment.volumetric_fog_enabled = true
+	environment.volumetric_fog_density = 0.018
 	environment_node.environment = environment
 	world.add_child(environment_node)
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48.0, -32.0, 0.0)
-	sun.light_energy = 1.2
+	sun.light_energy = 1.35
+	sun.light_color = Color("#fff0d5")
 	sun.shadow_enabled = true
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	sun.directional_shadow_max_distance = 28.0
 	world.add_child(sun)
 	sun_light = sun
 
@@ -185,8 +192,8 @@ func _build_3d_battlefield() -> void:
 	var ground_mesh := BoxMesh.new()
 	ground_mesh.size = Vector3(16.0, 0.18, 1.2)
 	var ground_material := StandardMaterial3D.new()
-	ground_material.albedo_color = Color("#719454")
-	ground_material.roughness = 1.0
+	ground_material.albedo_color = Color("#789b4d")
+	ground_material.roughness = 0.92
 	ground_mesh.material = ground_material
 	ground.mesh = ground_mesh
 	ground.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01, 0.0)
@@ -383,7 +390,8 @@ func _add_3d_cannon(parent: Node3D, pos: Vector3, tint: Color, mirrored: bool) -
 	base_mesh.height = 0.22
 	var base_mat := StandardMaterial3D.new()
 	base_mat.albedo_color = tint.darkened(0.28)
-	base_mat.roughness = 0.78
+	base_mat.metallic = 0.12
+	base_mat.roughness = 0.68
 	base_mesh.material = base_mat
 	base.mesh = base_mesh
 	cannon.add_child(base)
@@ -424,9 +432,9 @@ func _add_3d_soldiers(parent: Node3D, start: Vector3, tint: Color) -> void:
 		var torso_mesh := CapsuleMesh.new()
 		torso_mesh.radius = 0.065
 		torso_mesh.height = 0.28
-		var uniform := StandardMaterial3D.new()
+			var uniform := StandardMaterial3D.new()
 		uniform.albedo_color = tint
-		uniform.roughness = 0.88
+		uniform.roughness = 0.76
 		torso_mesh.material = uniform
 		torso.mesh = torso_mesh
 		torso.position.y = -0.13
