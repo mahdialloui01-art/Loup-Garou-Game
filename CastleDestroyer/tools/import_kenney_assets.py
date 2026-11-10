@@ -87,7 +87,7 @@ def import_pack(kind: str, archive_path: Path, destination_root: Path | None = N
             "license": "CC0 1.0",
             "archive": archive_path.name,
             "archive_sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(),
-            "imported_into": str(destination),
+            "imported_into": f"external-staging/{folder}" if destination_root else f"res://assets/vendor/{folder}/",
         }
         (staging / "SOURCE_METADATA.json").write_text(
             json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
