@@ -91,6 +91,16 @@ def stage_runtime(
         retro_textures = retro_models / "Textures"
         if retro_textures.is_dir():
             shutil.copytree(retro_textures, staging / "models" / "retro" / "Textures", dirs_exist_ok=True)
+
+        # Kenney Castle Kit GLBs reference ../Textures/colormap.png.
+        # Keep that relative path intact in the runtime folder.
+        castle_textures = castle_models / "Textures"
+        if castle_textures.is_dir():
+            shutil.copytree(castle_textures, staging / "models" / "Textures", dirs_exist_ok=True)
+        else:
+            raise FileNotFoundError(f"Required Castle Kit textures directory is missing: {castle_textures}")
+        if not (staging / "models" / "Textures" / "colormap.png").is_file():
+            raise FileNotFoundError("Required Castle Kit texture is missing: Textures/colormap.png")
         shutil.copy2(castle_license, staging / "licenses" / "castle-kit-License.txt")
         shutil.copy2(ui_license, staging / "licenses" / "ui-pack-License.txt")
         shutil.copy2(retro_license, staging / "licenses" / "retro-medieval-kit-License.txt")
@@ -107,7 +117,7 @@ def stage_runtime(
             "source_directories": [
                 "verified source archives extracted outside the Godot project",
             ],
-            "note": "Only runtime-required GLB and PNG assets plus both original CC0 license texts are staged.",
+            "note": "Only runtime-required GLB models, referenced texture atlases, UI PNG assets and original CC0 license texts are staged.",
         }
         for pack, root in (("castle", castle_root), ("ui", ui_root), ("retro", retro_root)):
             source_metadata = root / "SOURCE_METADATA.json"
