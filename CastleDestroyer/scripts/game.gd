@@ -62,6 +62,11 @@ var blocks: Array = []
 var falling_blocks: Array = []
 var physics_root: Node3D
 var battlefield_viewport: SubViewport
+var main_camera: Camera3D
+var sun_light: DirectionalLight3D
+var animated_flags: Array[Node3D] = []
+var camera_mode := 0
+var battlefield_time := 0.0
 var floor_body: StaticBody3D
 var projectiles: Array = []
 var particles: Array = []
@@ -147,6 +152,7 @@ func _build_3d_battlefield() -> void:
 	sun.light_energy = 1.2
 	sun.shadow_enabled = true
 	world.add_child(sun)
+	sun_light = sun
 
 	var ground := MeshInstance3D.new()
 	ground.name = "SideViewGround"
@@ -176,6 +182,11 @@ func _build_3d_battlefield() -> void:
 	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	camera.current = true
 	world.add_child(camera)
+	main_camera = camera
+	_add_3d_cannon(world, Vector3(2.05, -5.05, 0.28), Color("#c28a45"), false)
+	_add_3d_cannon(world, Vector3(10.75, -5.05, 0.28), Color("#657b9b"), true)
+	_add_3d_soldiers(world, Vector3(0.72, -5.42, 0.24), Color("#2563a6"))
+	_add_3d_soldiers(world, Vector3(11.55, -5.42, 0.24), Color("#b91c1c"))
 
 func _add_battlefield_castle_details(origin_x: float, team: String) -> void:
 	# Kenney tower, roof and flag models frame the live destructible 3D wall.
@@ -204,6 +215,79 @@ func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, 
 	instance.scale = scale_value
 	instance.rotation.y = deg_to_rad(yaw_degrees)
 	parent.add_child(instance)
+	if relative_path == "models/flag.glb":
+		animated_flags.append(instance)
+
+func _add_3d_cannon(parent: Node3D, pos: Vector3, tint: Color, mirrored: bool) -> void:
+	var cannon := Node3D.new()
+	cannon.name = "3DCannon"
+	cannon.position = pos
+	parent.add_child(cannon)
+	var base := MeshInstance3D.new()
+	var base_mesh := CylinderMesh.new()
+	base_mesh.top_radius = 0.24
+	base_mesh.bottom_radius = 0.3
+	base_mesh.height = 0.22
+	var base_mat := StandardMaterial3D.new()
+	base_mat.albedo_color = tint.darkened(0.28)
+	base_mat.roughness = 0.78
+	base_mesh.material = base_mat
+	base.mesh = base_mesh
+	cannon.add_child(base)
+	var barrel := MeshInstance3D.new()
+	var barrel_mesh := CylinderMesh.new()
+	barrel_mesh.top_radius = 0.075
+	barrel_mesh.bottom_radius = 0.13
+	barrel_mesh.height = 0.82
+	var barrel_mat := StandardMaterial3D.new()
+	barrel_mat.albedo_color = tint
+	barrel_mat.metallic = 0.18
+	barrel_mat.roughness = 0.5
+	barrel_mesh.material = barrel_mat
+	barrel.mesh = barrel_mesh
+	barrel.position = Vector3(0.0, -0.16, 0.0)
+	barrel.rotation.z = deg_to_rad(55.0 if not mirrored else -55.0)
+	cannon.add_child(barrel)
+	for side in [-1.0, 1.0]:
+		var wheel := MeshInstance3D.new()
+		var wheel_mesh := CylinderMesh.new()
+		wheel_mesh.top_radius = 0.16
+		wheel_mesh.bottom_radius = 0.16
+		wheel_mesh.height = 0.09
+		var wheel_mat := StandardMaterial3D.new()
+		wheel_mat.albedo_color = Color("#493b30")
+		wheel_mesh.material = wheel_mat
+		wheel.mesh = wheel_mesh
+		wheel.position = Vector3(side * 0.23, 0.0, 0.0)
+		wheel.rotation.x = PI * 0.5
+		cannon.add_child(wheel)
+
+func _add_3d_soldiers(parent: Node3D, start: Vector3, tint: Color) -> void:
+	for i in range(3):
+		var soldier := Node3D.new()
+		soldier.position = start + Vector3(float(i) * 0.2, 0.0, 0.0)
+		parent.add_child(soldier)
+		var torso := MeshInstance3D.new()
+		var torso_mesh := CapsuleMesh.new()
+		torso_mesh.radius = 0.065
+		torso_mesh.height = 0.28
+		var uniform := StandardMaterial3D.new()
+		uniform.albedo_color = tint
+		uniform.roughness = 0.88
+		torso_mesh.material = uniform
+		torso.mesh = torso_mesh
+		torso.position.y = -0.13
+		soldier.add_child(torso)
+		var head := MeshInstance3D.new()
+		var head_mesh := SphereMesh.new()
+		head_mesh.radius = 0.055
+		head_mesh.height = 0.11
+		var skin := StandardMaterial3D.new()
+		skin.albedo_color = Color("#e8bd91")
+		head_mesh.material = skin
+		head.mesh = head_mesh
+		head.position.y = -0.31
+		soldier.add_child(head)
 
 func _build_ui() -> void:
 	var top := HBoxContainer.new()
@@ -404,9 +488,11 @@ func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) 
 	var block_mesh := BoxMesh.new()
 	block_mesh.size = shape.size
 	var surface := StandardMaterial3D.new()
-	surface.albedo_color = Color("#c68a4c") if team == "player" else Color("#8994a6")
-	surface.roughness = 0.92
-	surface.metallic = 0.0
+	var stone_base := Color("#c99a62") if team == "player" else Color("#71869f")
+	var stone_variation := 0.035 if int(rect.position.x / 24.0) % 2 == 0 else -0.025
+	surface.albedo_color = stone_base.lightened(stone_variation)
+	surface.roughness = 0.86
+	surface.metallic = 0.035
 	block_mesh.material = surface
 	mesh_instance.mesh = block_mesh
 	body.add_child(mesh_instance)
@@ -418,7 +504,7 @@ func _update_block_visual(block: Dictionary) -> void:
 	if not is_instance_valid(mesh_instance):
 		return
 	var surface := StandardMaterial3D.new()
-	var base := Color("#c68a4c") if block["team"] == "player" else Color("#8994a6")
+	var base := Color("#c99a62") if block["team"] == "player" else Color("#71869f")
 	var health_ratio := float(block["hp"]) / float(maxi(1, block["max_hp"]))
 	surface.albedo_color = base.darkened(0.32) if health_ratio < 0.5 else base
 	surface.roughness = 0.92
@@ -487,7 +573,11 @@ func _cleanup_falling_blocks() -> void:
 			falling_blocks.remove_at(i)
 
 func _open_camera_test() -> void:
-	get_tree().change_scene_to_file("res://scenes/camera_a_preview.tscn")
+	# The camera test button cycles real camera rigs in the live 3D battle.
+	camera_mode = (camera_mode + 1) % 3
+	var labels := ["BATTLEFIELD OVERVIEW", "PLAYER FORT CLOSE-UP", "CINEMATIC SIEGE VIEW"]
+	message = "CAMERA: " + labels[camera_mode]
+	_update_hud()
 
 func _cycle_weapon() -> void:
 	weapon_index = (weapon_index + 1) % WEAPONS.size()
@@ -630,6 +720,7 @@ func _end_aim(pos: Vector2) -> void:
 	queue_redraw()
 
 func _process(delta: float) -> void:
+	_animate_battlefield(delta)
 	if paused or game_over:
 		return
 	elapsed += delta
@@ -643,6 +734,27 @@ func _process(delta: float) -> void:
 	_check_winner()
 	_update_hud()
 	queue_redraw()
+
+func _animate_battlefield(delta: float) -> void:
+	battlefield_time += delta
+	for i in range(animated_flags.size()):
+		var flag := animated_flags[i]
+		if is_instance_valid(flag):
+			flag.rotation.z = sin(battlefield_time * 2.2 + float(i) * 1.7) * 0.055
+	if is_instance_valid(sun_light):
+		sun_light.rotation_degrees.z = -32.0 + sin(battlefield_time * 0.12) * 3.0
+	if is_instance_valid(main_camera):
+		var target := Vector3(6.4, -3.6, 18.0)
+		var target_size := 7.2
+		if camera_mode == 1:
+			target = Vector3(3.2, -4.3, 13.0)
+			target_size = 5.4
+		elif camera_mode == 2:
+			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, -3.0, 15.0)
+			target_size = 6.2
+		main_camera.position = main_camera.position.lerp(target, minf(1.0, delta * 2.8))
+		main_camera.size = lerpf(main_camera.size, target_size, minf(1.0, delta * 2.8))
+		main_camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 
 func _step_projectiles(delta: float) -> void:
 	for i in range(projectiles.size() - 1, -1, -1):
