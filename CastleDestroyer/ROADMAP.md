@@ -18,7 +18,9 @@
 - [x] Pre-fractured mesh-swap editor plugin foundation
 - [x] Migrate fort collision and fractured debris to live 3D Jolt bodies
 - [x] Structural stability graph and cascading collapse evaluation
-- [ ] Explosive impulse, debris pooling and impact effects
+- [x] Explosive impulse and debris impact particle effects
+- [x] Mobile debris/particle budgets and planar physics constraints
+- [ ] Reusable debris object pooling
 - [ ] Troop movement, pathfinding, melee/ranged combat
 - [ ] Distinct troop classes, skills, cooldowns and counters
 - [ ] Enemy fort layouts and boss encounters
