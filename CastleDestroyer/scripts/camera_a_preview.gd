@@ -60,39 +60,42 @@ func _build_world() -> void:
 	add_child(camera)
 
 func _build_castle() -> void:
-	# A raised foundation and authentic Kenney wall modules.
+	# Raised foundation remains procedural; all visible fortress art is Kenney GLB.
 	_add_box(Vector3(0.0, 0.15, 0.0), Vector3(13.0, 0.5, 10.0), Color("#8b806c"))
 	_add_box(Vector3(0.0, 0.48, 0.0), Vector3(11.8, 0.18, 8.8), Color("#b6a58a"))
 	var wall_y := 0.57
 
-	# One-metre wall modules make a consistent perimeter at the chosen scale.
+	# Modular perimeter walls with a real doorway on the siege-facing side.
 	for x in range(-4, 5):
 		_add_kenney_model("models/wall.glb", Vector3(float(x), wall_y, -3.5))
 		_add_kenney_model("models/wall.glb", Vector3(float(x), wall_y, 3.5))
 	for z in range(-2, 3):
 		_add_kenney_model("models/wall.glb", Vector3(-4.5, wall_y, float(z)), Vector3.ONE, 90.0)
 		_add_kenney_model("models/wall.glb", Vector3(4.5, wall_y, float(z)), Vector3.ONE, 90.0)
-
-	# Four square towers are assembled from low-poly blocks and roof meshes.
 	for x in [-4.5, 4.5]:
 		for z in [-3.5, 3.5]:
-			_add_box(Vector3(x, 1.45, z), Vector3(1.35, 2.0, 1.35), Color("#b9aa91"))
-			_add_roof(Vector3(x, 2.75, z), Vector3(1.7, 1.15, 1.7), Color("#536d83"))
-			_add_box(Vector3(x, 3.6, z), Vector3(0.08, 0.8, 0.08), Color("#493d32"))
-			_add_box(Vector3(x + 0.25, 3.82, z), Vector3(0.55, 0.28, 0.04), Color("#c14942"))
+			_add_kenney_model("models/wall-corner.glb", Vector3(x, wall_y, z))
 
-	# Central keep and a simple gate give the walls a clear focal point.
-	_add_box(Vector3(0.0, 1.8, -0.5), Vector3(3.3, 2.7, 2.8), Color("#a99a82"))
-	_add_roof(Vector3(0.0, 3.65, -0.5), Vector3(3.8, 1.25, 3.2), Color("#536d83"))
-	_add_box(Vector3(0.0, 1.25, 3.58), Vector3(1.7, 1.45, 0.18), Color("#493d32"))
+	# Four fortified towers, assembled from the Castle Kit tower and roof pieces.
+	for x in [-4.8, 4.8]:
+		for z in [-3.8, 3.8]:
+			_add_kenney_model("models/tower-square.glb", Vector3(x, wall_y, z), Vector3(1.45, 1.55, 1.45))
+			_add_kenney_model("models/tower-square-roof.glb", Vector3(x, wall_y + 1.25, z), Vector3(1.35, 0.72, 1.35))
+			_add_kenney_model("models/flag.glb", Vector3(x, wall_y + 2.8, z), Vector3(1.2, 1.2, 1.2))
 
-	# Kenney catapult is represented by a simple siege prop until its model is added.
-	_add_box(Vector3(0.0, 0.78, 7.0), Vector3(1.25, 0.3, 0.95), Color("#493c31"))
-	_add_cylinder(Vector3(0.0, 1.1, 6.8), 0.12, 1.35, Color("#806142"), Vector3(-38.0, 0.0, 0.0))
+	_add_kenney_model("models/wall-doorway.glb", Vector3(0.0, wall_y, 3.5))
+	_add_kenney_model("models/gate.glb", Vector3(0.0, wall_y + 0.05, 3.78), Vector3(1.0, 1.0, 1.0))
 
+	# Keep and roof give the fortress a recognizable central landmark.
+	_add_kenney_model("models/tower-square.glb", Vector3(0.0, wall_y, -0.35), Vector3(2.65, 2.7, 2.65))
+	_add_kenney_model("models/tower-square-roof.glb", Vector3(0.0, wall_y + 2.55, -0.35), Vector3(2.45, 1.05, 2.45))
+
+	# Siege catapult and environmental props are also real Kenney assets.
+	_add_kenney_model("models/siege-catapult.glb", Vector3(0.0, 0.46, 7.0), Vector3(1.45, 1.45, 1.45), 180.0)
 	for p in [Vector3(-8.0, 0.0, -4.5), Vector3(8.0, 0.0, -4.5), Vector3(-8.0, 0.0, 5.0), Vector3(8.0, 0.0, 5.0)]:
-		_add_cylinder(p + Vector3(0.0, 0.8, 0.0), 0.18, 1.6, Color("#6b4a32"))
-		_add_sphere(p + Vector3(0.0, 2.0, 0.0), 1.15, Color("#47764a"))
+		_add_kenney_model("models/tree-large.glb", p, Vector3(2.0, 2.0, 2.0))
+	for p in [Vector3(-6.5, 0.45, 0.0), Vector3(6.5, 0.45, 1.0)]:
+		_add_kenney_model("models/rocks-large.glb", p, Vector3(1.5, 1.5, 1.5))
 
 func _add_kenney_model(relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
 	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
@@ -200,16 +203,18 @@ func _build_hud() -> void:
 	row.add_child(hint_label)
 
 func _apply_kenney_button(button: Button, tint: Color) -> void:
-	var button_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png") as Texture2D
-	if button_texture == null:
+	var normal_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png") as Texture2D
+	var hover_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_gloss.png") as Texture2D
+	var pressed_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_border.png") as Texture2D
+	if normal_texture == null or hover_texture == null or pressed_texture == null:
 		return
 	for entry in [
-		{"name": "normal", "tint": tint},
-		{"name": "hover", "tint": tint.lightened(0.12)},
-		{"name": "pressed", "tint": tint.darkened(0.12)}
+		{"name": "normal", "texture": normal_texture, "tint": tint},
+		{"name": "hover", "texture": hover_texture, "tint": tint.lightened(0.12)},
+		{"name": "pressed", "texture": pressed_texture, "tint": tint.darkened(0.12)}
 	]:
 		var style := StyleBoxTexture.new()
-		style.texture = button_texture
+		style.texture = entry["texture"]
 		style.modulate_color = entry["tint"]
 		style.texture_margin_left = 16.0
 		style.texture_margin_right = 16.0
