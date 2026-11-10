@@ -809,6 +809,7 @@ func _menu_panel_style() -> StyleBox:
 	return style
 
 func _start_game() -> void:
+	audio_manager.play("menu")
 	game_started = true
 	main_menu.visible = false
 	_set_game_hud_visible(true)
@@ -1154,6 +1155,7 @@ func _fire_selected() -> void:
 		"splash": float(weapon["splash"]),
 		"kind": weapon_id
 	})
+	audio_manager.play("cannon")
 	message = "%s FIRED!" % weapon["name"]
 	_update_hud()
 
@@ -1164,6 +1166,7 @@ func _enemy_fire() -> void:
 	var direction := (Vector2(target_x, 320.0) - ENEMY_CANNON).normalized()
 	var launch_position := ENEMY_CANNON + Vector2(-15.0, -12.0)
 	var projectile_visual := _spawn_projectile_visual("stone", "enemy")
+	audio_manager.play("enemy_cannon")
 	if is_instance_valid(projectile_visual):
 		projectile_visual.position = Vector3(launch_position.x * 0.01, -launch_position.y * 0.01, 0.0)
 	projectiles.append({
@@ -1187,6 +1190,7 @@ func _upgrade_cannon() -> void:
 		gold -= cost
 		cannon_level += 1
 		_save_progress()
+		audio_manager.play("upgrade")
 		message = "CANNON UPGRADED TO LEVEL %d!" % cannon_level
 	_update_hud()
 
@@ -1199,6 +1203,7 @@ func _upgrade_walls() -> void:
 	else:
 		gold -= cost
 		wall_level += 1
+		audio_manager.play("upgrade")
 		for i in range(blocks.size()):
 			var block: Dictionary = blocks[i]
 			if block["team"] == "player":
@@ -1219,6 +1224,7 @@ func _next_level() -> void:
 	_new_game()
 
 func _toggle_pause() -> void:
+	audio_manager.play("menu")
 	paused = not paused
 	for body in falling_blocks:
 		if is_instance_valid(body):
@@ -1490,6 +1496,12 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 				score += applied * 12
 			blocks[i] = block
 	_spawn_burst(pos, 15 if splash > 0.0 else 7, shot["kind"])
+	var impact_sound := "stone_impact"
+	if shot["kind"] == "bomb":
+		impact_sound = "explosion"
+	elif shot["kind"] == "fire":
+		impact_sound = "fire_impact"
+	audio_manager.play(impact_sound)
 	camera_shake_strength = maxf(camera_shake_strength, 0.42 if shot["kind"] == "stone" else 0.72)
 	for i in range(remove_list.size() - 1, -1, -1):
 		blocks.remove_at(remove_list[i])
@@ -1515,6 +1527,8 @@ func _apply_blast_to_debris(center: Vector2, radius: float, damage: int, incomin
 func _on_debris_impact(world_position: Vector3, strength: float) -> void:
 	var screen_position := Vector2(world_position.x * 100.0, -world_position.y * 100.0)
 	var amount := clampi(roundi(strength * 1.5), 3, 12)
+	if strength >= 3.5:
+		audio_manager.play("debris")
 	_spawn_burst(screen_position, amount, "stone")
 
 func _spawn_projectile_trail(pos: Vector2, kind: String) -> void:
