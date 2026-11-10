@@ -83,9 +83,10 @@ jobs:
         run: godot --headless --path CastleDestroyer --quit-after 5
       - name: Export debug APK
         run: |
-          mkdir -p build
-          godot --headless --verbose --path CastleDestroyer --export-debug "Android" build/CastleDestroyer-debug.apk 2>&1 | tee build/android-export.log
-          test -s build/CastleDestroyer-debug.apk
+          set -o pipefail
+          mkdir -p "$GITHUB_WORKSPACE/build"
+          godot --headless --verbose --path CastleDestroyer --export-debug "Android" "$GITHUB_WORKSPACE/build/CastleDestroyer-debug.apk" 2>&1 | tee "$GITHUB_WORKSPACE/build/android-export.log"
+          test -s "$GITHUB_WORKSPACE/build/CastleDestroyer-debug.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: CastleDestroyer-Android-debug
