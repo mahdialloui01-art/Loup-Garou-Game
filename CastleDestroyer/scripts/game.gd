@@ -1,5 +1,28 @@
 extends Control
 
+class FallingFortBlock extends RigidBody2D:
+	var block_size := Vector2(22.0, 23.0)
+	var block_color := Color("#c68a4c")
+
+	func _ready() -> void:
+		var shape := RectangleShape2D.new()
+		shape.size = block_size
+		var collision := CollisionShape2D.new()
+		collision.shape = shape
+		add_child(collision)
+		var material := PhysicsMaterial.new()
+		material.friction = 0.82
+		material.bounce = 0.12
+		physics_material_override = material
+		contact_monitor = true
+		max_contacts_reported = 4
+
+	func _draw() -> void:
+		var rect := Rect2(-block_size * 0.5, block_size)
+		draw_rect(rect, block_color)
+		draw_rect(Rect2(rect.position + Vector2(2.0, 2.0), Vector2(block_size.x - 4.0, 4.0)), block_color.lightened(0.32))
+		draw_rect(rect, Color("#514437"), false, 2.0)
+
 # Castle Destroyer - campaign foundation
 # All artwork is original procedural drawing; no Castle Busters assets are used.
 
@@ -14,6 +37,9 @@ const WEAPONS := [
 ]
 
 var blocks: Array = []
+var falling_blocks: Array = []
+var physics_root: Node2D
+var floor_body: StaticBody2D
 var projectiles: Array = []
 var particles: Array = []
 var score := 0
@@ -49,6 +75,10 @@ var next_button: Button
 func _ready() -> void:
 	randomize()
 	_load_progress()
+	physics_root = Node2D.new()
+	physics_root.name = "FortPhysics"
+	add_child(physics_root)
+	_create_physics_floor()
 	_build_ui()
 	_new_game()
 	set_process(true)
@@ -170,6 +200,7 @@ func _save_progress() -> void:
 	config.save(SAVE_PATH)
 
 func _new_game() -> void:
+	_clear_physics_castle()
 	blocks.clear()
 	projectiles.clear()
 	particles.clear()
@@ -195,16 +226,111 @@ func _add_castle(origin_x: float, team: String, armor_level: int) -> void:
 	for row in range(rows):
 		for col in range(5):
 			var max_hp := armor_level + (1 if row == rows - 1 else 0)
-			blocks.append({
-				"rect": Rect2(origin_x + float(col) * 24.0, FLOOR_Y - 25.0 - float(row) * 25.0, 23.0, 24.0),
-				"team": team,
-				"hp": max_hp,
-				"max_hp": max_hp,
-				"kind": "stone"
-			})
+			var block_rect := Rect2(origin_x + float(col) * 24.0, FLOOR_Y - 25.0 - float(row) * 25.0, 23.0, 24.0)
+			blocks.append(_make_block(block_rect, team, max_hp, max_hp, "stone"))
 	# Main tower, battlements and flag mast.
-	blocks.append({"rect": Rect2(origin_x + 25.0, FLOOR_Y - 25.0 - float(rows) * 25.0, 72.0, 15.0), "team": team, "hp": armor_level + 2, "max_hp": armor_level + 2, "kind": "tower"})
-	blocks.append({"rect": Rect2(origin_x + 49.0, FLOOR_Y - 25.0 - float(rows) * 25.0 - 45.0, 22.0, 45.0), "team": team, "hp": armor_level + 1, "max_hp": armor_level + 1, "kind": "tower"})
+	var tower_rect := Rect2(origin_x + 25.0, FLOOR_Y - 25.0 - float(rows) * 25.0, 72.0, 15.0)
+	blocks.append(_make_block(tower_rect, team, armor_level + 2, armor_level + 2, "tower"))
+	var mast_rect := Rect2(origin_x + 49.0, FLOOR_Y - 25.0 - float(rows) * 25.0 - 45.0, 22.0, 45.0)
+	blocks.append(_make_block(mast_rect, team, armor_level + 1, armor_level + 1, "tower"))
+
+func _create_physics_floor() -> void:
+	floor_body = StaticBody2D.new()
+	floor_body.name = "GroundCollider"
+	floor_body.position = Vector2(640.0, FLOOR_Y + 8.0)
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(1500.0, 16.0)
+	var collision := CollisionShape2D.new()
+	collision.shape = shape
+	floor_body.add_child(collision)
+	physics_root.add_child(floor_body)
+
+func _clear_physics_castle() -> void:
+	for body in falling_blocks:
+		if is_instance_valid(body):
+			body.queue_free()
+	falling_blocks.clear()
+	for child in physics_root.get_children():
+		if child != floor_body:
+			child.free()
+
+func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) -> Dictionary:
+	var body := StaticBody2D.new()
+	body.position = rect.get_center()
+	var shape := RectangleShape2D.new()
+	shape.size = rect.size
+	var collision := CollisionShape2D.new()
+	collision.shape = shape
+	body.add_child(collision)
+	physics_root.add_child(body)
+	return {"rect": rect, "team": team, "hp": hp, "max_hp": max_hp, "kind": kind, "body": body}
+
+func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity: Vector2) -> void:
+	if falling_blocks.size() >= 70:
+		var oldest: RigidBody2D = falling_blocks.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
+	var body := FallingFortBlock.new()
+	var rect: Rect2 = block["rect"]
+	body.block_size = rect.size
+	body.block_color = Color("#c68a4c") if block["team"] == "player" else Color("#8994a6")
+	body.mass = clampf(rect.size.x * rect.size.y / 500.0, 0.8, 3.5)
+	body.position = rect.get_center()
+	body.collision_layer = 1
+	body.collision_mask = 1
+	var away := (rect.get_center() - impact).normalized()
+	if away.length_squared() < 0.01:
+		away = Vector2.UP
+	body.linear_velocity = incoming_velocity * 0.12 + away * randf_range(2.5, 6.0)
+	body.angular_velocity = randf_range(-2.8, 2.8)
+	body.freeze = paused
+	physics_root.add_child(body)
+	falling_blocks.append(body)
+	var old_body: StaticBody2D = block["body"]
+	if is_instance_valid(old_body):
+		old_body.queue_free()
+
+func _collapse_unsupported_blocks(team: String, impact: Vector2, incoming_velocity: Vector2) -> void:
+	var passes := 0
+	while passes < 12:
+		passes += 1
+		var unsupported: Array[int] = []
+		for i in range(blocks.size()):
+			var block: Dictionary = blocks[i]
+			if block["team"] != team:
+				continue
+			var rect: Rect2 = block["rect"]
+			if rect.position.y >= FLOOR_Y - 28.0:
+				continue
+			var supported := false
+			for j in range(blocks.size()):
+				if i == j:
+					continue
+				var candidate: Dictionary = blocks[j]
+				if candidate["team"] != team:
+					continue
+				var below: Rect2 = candidate["rect"]
+				var vertical_gap := absf(below.end.y - rect.position.y)
+				var horizontal_overlap := minf(rect.end.x, below.end.x) - maxf(rect.position.x, below.position.x)
+				if vertical_gap <= 12.0 and horizontal_overlap >= minf(8.0, rect.size.x * 0.3):
+					supported = true
+					break
+			if not supported:
+				unsupported.append(i)
+		if unsupported.is_empty():
+			break
+		for index in range(unsupported.size() - 1, -1, -1):
+			var block: Dictionary = blocks[unsupported[index]]
+			_spawn_falling_block(block, impact, incoming_velocity)
+			blocks.remove_at(unsupported[index])
+
+func _cleanup_falling_blocks() -> void:
+	for i in range(falling_blocks.size() - 1, -1, -1):
+		var body: RigidBody2D = falling_blocks[i]
+		if not is_instance_valid(body) or body.position.y > 900.0:
+			if is_instance_valid(body):
+				body.queue_free()
+			falling_blocks.remove_at(i)
 
 func _cycle_weapon() -> void:
 	weapon_index = (weapon_index + 1) % WEAPONS.size()
@@ -299,6 +425,9 @@ func _next_level() -> void:
 
 func _toggle_pause() -> void:
 	paused = not paused
+	for body in falling_blocks:
+		if is_instance_valid(body):
+			body.freeze = paused
 	message = "BATTLE PAUSED" if paused else "BATTLE RESUMED"
 	_update_hud()
 
@@ -353,6 +482,7 @@ func _process(delta: float) -> void:
 		enemy_cooldown = maxf(1.7, randf_range(3.2, 4.4) - float(level) * 0.07)
 	_step_projectiles(delta)
 	_step_particles(delta)
+	_cleanup_falling_blocks()
 	_check_winner()
 	_update_hud()
 	queue_redraw()
@@ -402,12 +532,14 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 			block["hp"] = int(block["hp"]) - applied
 			if int(block["hp"]) <= 0:
 				remove_list.append(i)
+				_spawn_falling_block(block, pos, shot["vel"])
 			if team == "player":
 				score += applied * 12
 			blocks[i] = block
 	_spawn_burst(pos, 15 if splash > 0.0 else 7, shot["kind"])
 	for i in range(remove_list.size() - 1, -1, -1):
 		blocks.remove_at(remove_list[i])
+	_collapse_unsupported_blocks("player" if team == "enemy" else "enemy", pos, shot["vel"])
 
 func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
 	var particle_color := Color("#f97316") if kind == "fire" else Color("#a88b68")
