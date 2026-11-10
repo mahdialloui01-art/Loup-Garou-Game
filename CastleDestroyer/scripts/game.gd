@@ -1,5 +1,7 @@
 extends Control
 
+const StructuralIntegrityGraph = preload("res://addons/castle_destruction/structural_integrity_graph.gd")
+
 class FallingFortBlock extends RigidBody2D:
 	var block_size := Vector2(22.0, 23.0)
 	var block_color := Color("#c68a4c")
@@ -288,38 +290,22 @@ func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity:
 		old_body.queue_free()
 
 func _collapse_unsupported_blocks(team: String, impact: Vector2, incoming_velocity: Vector2) -> void:
+	# Re-evaluate the support graph after each collapse wave. Ground-connected
+	# blocks remain stable; anything disconnected becomes physical debris.
 	var passes := 0
 	while passes < 12:
 		passes += 1
-		var unsupported: Array[int] = []
-		for i in range(blocks.size()):
-			var block: Dictionary = blocks[i]
-			if block["team"] != team:
-				continue
-			var rect: Rect2 = block["rect"]
-			if rect.position.y >= FLOOR_Y - 28.0:
-				continue
-			var supported := false
-			for j in range(blocks.size()):
-				if i == j:
-					continue
-				var candidate: Dictionary = blocks[j]
-				if candidate["team"] != team:
-					continue
-				var below: Rect2 = candidate["rect"]
-				var vertical_gap := absf(below.position.y - rect.end.y)
-				var horizontal_overlap := minf(rect.end.x, below.end.x) - maxf(rect.position.x, below.position.x)
-				if vertical_gap <= 12.0 and horizontal_overlap >= minf(8.0, rect.size.x * 0.3):
-					supported = true
-					break
-			if not supported:
-				unsupported.append(i)
+		var unsupported: Array[int] = StructuralIntegrityGraph.find_unsupported(blocks, team, FLOOR_Y)
 		if unsupported.is_empty():
 			break
+		unsupported.sort()
 		for index in range(unsupported.size() - 1, -1, -1):
-			var block: Dictionary = blocks[unsupported[index]]
+			var block_index: int = unsupported[index]
+			if block_index < 0 or block_index >= blocks.size():
+				continue
+			var block: Dictionary = blocks[block_index]
 			_spawn_falling_block(block, impact, incoming_velocity)
-			blocks.remove_at(unsupported[index])
+			blocks.remove_at(block_index)
 
 func _cleanup_falling_blocks() -> void:
 	for i in range(falling_blocks.size() - 1, -1, -1):
