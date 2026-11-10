@@ -146,6 +146,7 @@ func _build_3d_battlefield() -> void:
 	battlefield_viewport.add_child(world)
 
 	var environment_node := WorldEnvironment.new()
+	environment_node.name = "WorldEnvironment"
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
@@ -188,8 +189,8 @@ func _build_3d_battlefield() -> void:
 	_build_distant_landscape(world)
 
 	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, -5.45, -0.7), Vector3(0.55, 0.55, 0.55), 180.0)
-	_add_battlefield_prop(world, "models/avramania-boulder.glb", Vector3(0.45, -5.46, -1.2), Vector3(0.75, 0.75, 0.75))
-	_add_battlefield_prop(world, "models/avramania-boulder.glb", Vector3(12.25, -5.46, -1.1), Vector3(0.9, 0.9, 0.9))
+	_add_battlefield_prop(world, "models/rocks-large.glb", Vector3(0.45, -5.46, -1.2), Vector3(0.75, 0.75, 0.75))
+	_add_battlefield_prop(world, "models/rocks-large.glb", Vector3(12.25, -5.46, -1.1), Vector3(0.9, 0.9, 0.9))
 	for tree_position in [
 		Vector3(-0.25, -5.45, -0.9), Vector3(12.9, -5.45, -0.9)
 	]:
@@ -203,9 +204,9 @@ func _build_3d_battlefield() -> void:
 	# Tactical elevated 3D overview: the camera looks down across the full siege lane.
 	camera.size = 8.4
 	camera.position = Vector3(6.4, 7.5, 10.8)
-	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	camera.current = true
 	world.add_child(camera)
+	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	main_camera = camera
 	_add_3d_cannon(world, Vector3(2.05, -5.05, 0.28), Color("#c28a45"), false)
 	player_cannon_node = world.get_node_or_null("3DCannon")
