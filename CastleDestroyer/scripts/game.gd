@@ -61,6 +61,7 @@ const WEAPONS := [
 var blocks: Array = []
 var falling_blocks: Array = []
 var physics_root: Node3D
+var battlefield_viewport: SubViewport
 var floor_body: StaticBody3D
 var projectiles: Array = []
 var particles: Array = []
@@ -102,9 +103,111 @@ func _ready() -> void:
 	physics_root.name = "FortPhysics"
 	add_child(physics_root)
 	_create_physics_floor()
+	_build_3d_battlefield()
 	_build_ui()
 	_new_game()
 	set_process(true)
+
+
+func _build_3d_battlefield() -> void:
+	# Render a real-time 3D battlefield behind the existing 2D combat layer.
+	# The current hit-testing and structural graph remain authoritative.
+	battlefield_viewport = SubViewport.new()
+	battlefield_viewport.name = "Battlefield3DViewport"
+	battlefield_viewport.size = Vector2i(1280, 720)
+	battlefield_viewport.disable_3d = false
+	battlefield_viewport.transparent_bg = false
+	battlefield_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(battlefield_viewport)
+
+	var world := Node3D.new()
+	world.name = "Battlefield3D"
+	battlefield_viewport.add_child(world)
+
+	var environment_node := WorldEnvironment.new()
+	var environment := Environment.new()
+	environment.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("#4b86b9")
+	sky_material.sky_horizon_color = Color("#d5e5ed")
+	sky_material.ground_bottom_color = Color("#344b39")
+	sky_material.ground_horizon_color = Color("#8b9b83")
+	sky.sky_material = sky_material
+	environment.sky = sky
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color("#c4d4df")
+	environment.ambient_light_energy = 0.75
+	environment_node.environment = environment
+	world.add_child(environment_node)
+
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-48.0, -32.0, 0.0)
+	sun.light_energy = 1.2
+	sun.shadow_enabled = true
+	world.add_child(sun)
+
+	var ground := MeshInstance3D.new()
+	var ground_mesh := PlaneMesh.new()
+	ground_mesh.size = Vector2(40.0, 40.0)
+	var ground_material := StandardMaterial3D.new()
+	ground_material.albedo_color = Color("#719454")
+	ground_material.roughness = 1.0
+	ground_mesh.material = ground_material
+	ground.mesh = ground_mesh
+	ground.position = Vector3(6.4, -0.08, 0.0)
+	world.add_child(ground)
+
+	_add_battlefield_castle(world, 1.5, Color("#315f91"))
+	_add_battlefield_castle(world, 11.0, Color("#a33c3c"))
+	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, 0.0, 3.0), Vector3(1.15, 1.15, 1.15), 180.0)
+	for tree_position in [
+		Vector3(-1.4, 0.0, -2.2), Vector3(14.2, 0.0, -2.2),
+		Vector3(-1.2, 0.0, 3.2), Vector3(14.0, 0.0, 3.2)
+	]:
+		_add_battlefield_prop(world, "models/tree-large.glb", tree_position, Vector3(1.4, 1.4, 1.4))
+
+	var camera := Camera3D.new()
+	camera.name = "MainBattlefieldCamera"
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 7.2
+	camera.position = Vector3(6.4, 8.2, 18.0)
+	camera.look_at(Vector3(6.4, 2.0, 0.0), Vector3.UP)
+	camera.current = true
+	world.add_child(camera)
+
+func _add_battlefield_castle(parent: Node3D, center_x: float, flag_tint: Color) -> void:
+	var wall_y := 0.0
+	for x_offset in [-1.25, -0.4, 0.4, 1.25]:
+		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x + x_offset, wall_y, 0.0))
+		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x + x_offset, wall_y, -1.6))
+	for z_offset in [-1.2, -0.4, 0.4, 1.2]:
+		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x - 1.7, wall_y, z_offset), Vector3.ONE, 90.0)
+		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x + 1.7, wall_y, z_offset), Vector3.ONE, 90.0)
+	for x_offset in [-1.7, 1.7]:
+		for z_offset in [-1.6, 0.0]:
+			_add_battlefield_prop(parent, "models/tower-square.glb", Vector3(center_x + x_offset, 0.0, z_offset), Vector3(1.15, 1.2, 1.15))
+			_add_battlefield_prop(parent, "models/tower-square-roof.glb", Vector3(center_x + x_offset, 1.05, z_offset), Vector3(1.05, 0.65, 1.05))
+			_add_battlefield_prop(parent, "models/flag.glb", Vector3(center_x + x_offset, 2.1, z_offset), Vector3.ONE)
+	_add_battlefield_prop(parent, "models/wall-doorway.glb", Vector3(center_x, 0.0, 0.0))
+	_add_battlefield_prop(parent, "models/gate.glb", Vector3(center_x, 0.05, 0.25))
+	_add_battlefield_prop(parent, "models/tower-square.glb", Vector3(center_x, 0.0, -0.8), Vector3(1.65, 1.75, 1.65))
+	_add_battlefield_prop(parent, "models/tower-square-roof.glb", Vector3(center_x, 1.55, -0.8), Vector3(1.5, 0.8, 1.5))
+
+func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
+	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
+	var packed := load(resource_path) as PackedScene
+	if packed == null:
+		push_warning("3D battlefield asset missing: " + resource_path)
+		return
+	var instance := packed.instantiate() as Node3D
+	if instance == null:
+		push_warning("3D battlefield asset is not a Node3D scene: " + resource_path)
+		return
+	instance.position = pos
+	instance.scale = scale_value
+	instance.rotation.y = deg_to_rad(yaw_degrees)
+	parent.add_child(instance)
 
 func _build_ui() -> void:
 	var top := HBoxContainer.new()
@@ -663,21 +766,10 @@ func _update_hud() -> void:
 
 func _draw() -> void:
 	var size := get_viewport_rect().size
-	var sky := Color("#83c9eb")
-	draw_rect(Rect2(Vector2.ZERO, size), sky)
-	# Distant mountains and sun.
-	draw_circle(Vector2(1080.0, 125.0), 48.0, Color("#ffe58a"))
-	draw_colored_polygon(PackedVector2Array([Vector2(0, 430), Vector2(190, 230), Vector2(390, 430)]), Color("#a4c8b2"))
-	draw_colored_polygon(PackedVector2Array([Vector2(330, 440), Vector2(590, 190), Vector2(850, 440)]), Color("#9abca9"))
-	draw_colored_polygon(PackedVector2Array([Vector2(790, 430), Vector2(1040, 220), Vector2(1280, 430)]), Color("#a4c8b2"))
-	for cloud_x in [100.0, 430.0, 780.0]:
-		draw_circle(Vector2(cloud_x, 120.0), 25.0, Color("#f4fbff"))
-		draw_circle(Vector2(cloud_x + 25.0, 110.0), 31.0, Color("#f4fbff"))
-		draw_circle(Vector2(cloud_x + 52.0, 122.0), 23.0, Color("#f4fbff"))
-	draw_rect(Rect2(0.0, FLOOR_Y, size.x, size.y - FLOOR_Y), Color("#78b95a"))
-	draw_rect(Rect2(0.0, FLOOR_Y + 14.0, size.x, 18.0), Color("#568b42"))
-	draw_circle(Vector2(350.0, 575.0), 160.0, Color("#91c875"))
-	draw_circle(Vector2(900.0, 580.0), 190.0, Color("#91c875"))
+	if battlefield_viewport != null and battlefield_viewport.get_texture() != null:
+		draw_texture_rect(battlefield_viewport.get_texture(), Rect2(Vector2.ZERO, size), false)
+	else:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("#83c9eb"))
 	_draw_castle_details()
 	for block in blocks:
 		var rect: Rect2 = block["rect"]
