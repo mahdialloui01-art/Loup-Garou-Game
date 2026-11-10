@@ -66,6 +66,10 @@ func _run_test() -> void:
 		push_error("Expected at least 50 rendered 3D destructible castle blocks")
 		quit(1)
 		return
+	if game.gobkit_insect_count < 1:
+		push_error("Gobkit animated 3D scenery models were not loaded")
+		quit(1)
+		return
 	var world := game.battlefield_viewport.get_child(0) as Node3D
 	if world == null or world.find_child("MainBattlefieldCamera", true, false) == null:
 		push_error("Main 3D battlefield world/camera is missing")

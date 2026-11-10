@@ -43,3 +43,10 @@ This is an expanded playable foundation, not yet equivalent in content or produc
 ## Asset sourcing
 
 Reviewed and selected CC0 sources for the castle environment and mobile interface. See [ASSET_SOURCES.md](ASSET_SOURCES.md) for pack links, license evidence, intended use, and import status. The source archives are not yet part of the repository; art integration remains an open milestone until imported resources are verified in-game.
+
+
+## Gobkit animated insect scenery
+- Two lightweight animated CC0 GLB insect models are staged from the owner-uploaded Gobkit archive during Android CI.
+- The game places them in the distant scenery, starts their authored idle/first animation, and disables their shadows to limit GPU cost.
+- The original ZIP is excluded from the Android export; only the selected GLB models and required PNG textures are staged into the runtime project.
+- The CI workflow verifies the staging script before importing the project in Godot.

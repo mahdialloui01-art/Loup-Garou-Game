@@ -72,6 +72,7 @@ var player_cannon_node: Node3D
 var sun_light: DirectionalLight3D
 var sun_disc: MeshInstance3D
 var animated_flags: Array[Node3D] = []
+var gobkit_insect_count := 0
 var camera_mode := 0
 var camera_zoom := 1.0
 var camera_orbit_yaw := 0.0
@@ -232,6 +233,7 @@ func _build_3d_battlefield() -> void:
 	world.add_child(ground)
 	_build_terrain_detail(world)
 	_build_distant_landscape(world)
+	_add_gobkit_ambient_insects(world)
 
 	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, -5.45, -0.7), Vector3(0.55, 0.55, 0.55), 180.0)
 	_add_battlefield_prop(world, "models/rocks-large.glb", Vector3(0.45, -5.46, -1.2), Vector3(0.75, 0.75, 0.75))
@@ -429,6 +431,78 @@ func _build_distant_landscape(world: Node3D) -> void:
 	for i in range(12):
 		var far_tree_x := -17.0 + float(i) * 4.2
 		_add_battlefield_prop(world, "models/tree-large.glb", Vector3(far_tree_x, -5.45, -27.0), Vector3(0.52, 0.62, 0.52), randf_range(-22.0, 22.0))
+
+
+func _add_gobkit_ambient_insects(parent: Node3D) -> void:
+	# Load at most two animated CC0 insects. Keeping the count low protects
+	# mobile frame time while adding genuine animated 3D life to the scenery.
+	const ASSET_ROOT := "res://assets/vendor/gobkit-runtime"
+	var directory := DirAccess.open(ASSET_ROOT)
+	if directory == null:
+		push_warning("Gobkit runtime assets are not staged; skipping ambient insects.")
+		return
+
+	var filenames: Array[String] = []
+	directory.list_dir_begin()
+	var filename := directory.get_next()
+	while not filename.is_empty():
+		if not directory.current_is_dir() and filename.get_extension().to_lower() == "glb":
+			filenames.append(filename)
+		filename = directory.get_next()
+	directory.list_dir_end()
+	filenames.sort()
+
+	var insect_root := Node3D.new()
+	insect_root.name = "GobkitAmbientInsects"
+	parent.add_child(insect_root)
+	for i in range(mini(2, filenames.size())):
+		var resource_path := ASSET_ROOT + "/" + filenames[i]
+		var packed := load(resource_path) as PackedScene
+		if packed == null:
+			push_warning("Could not load Gobkit model: " + resource_path)
+			continue
+		var insect := packed.instantiate() as Node3D
+		if insect == null:
+			push_warning("Gobkit model root is not Node3D: " + resource_path)
+			continue
+		insect.name = "GobkitAmbientInsect_%02d" % i
+
+		# Normalize unknown source-model dimensions to a small, readable
+		# background scale; disable insect shadows to avoid extra mobile GPU cost.
+		var combined_bounds := AABB()
+		var has_bounds := false
+		for mesh_node in insect.find_children("*", "MeshInstance3D", true, false):
+			var mesh_instance := mesh_node as MeshInstance3D
+			if mesh_instance.mesh == null:
+				continue
+			var mesh_bounds := mesh_instance.get_aabb().transformed(mesh_instance.transform)
+			if has_bounds:
+				combined_bounds = combined_bounds.merge(mesh_bounds)
+			else:
+				combined_bounds = mesh_bounds
+				has_bounds = true
+			mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var largest_extent := maxf(combined_bounds.size.x, maxf(combined_bounds.size.y, combined_bounds.size.z)) if has_bounds else 1.0
+		var normalized_scale := clampf(0.42 / maxf(largest_extent, 0.001), 0.001, 1.0)
+		insect.scale = Vector3.ONE * normalized_scale
+		insect.position = Vector3(2.4 + float(i) * 7.1, -4.78 + float(i) * 0.10, -3.05)
+		insect.rotation.y = deg_to_rad(24.0 if i == 0 else -18.0)
+		insect_root.add_child(insect)
+
+		# Prefer the authored idle loop; fall back to the first available clip.
+		for animation_node in insect.find_children("*", "AnimationPlayer", true, false):
+			var animation_player := animation_node as AnimationPlayer
+			var animation_names := animation_player.get_animation_list()
+			var selected_animation := ""
+			for animation_name in animation_names:
+				if String(animation_name).to_lower().contains("idle"):
+					selected_animation = String(animation_name)
+					break
+			if selected_animation.is_empty() and not animation_names.is_empty():
+				selected_animation = String(animation_names[0])
+			if not selected_animation.is_empty():
+				animation_player.play(selected_animation)
+		gobkit_insect_count += 1
 
 func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
 	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path

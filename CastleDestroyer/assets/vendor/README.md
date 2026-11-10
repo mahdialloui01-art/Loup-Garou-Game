@@ -43,3 +43,7 @@ rejects unsafe ZIP paths, symlinks, oversized archives, and archives without a
 CC0 license. Runtime staging verifies both licenses and every required model
 and UI texture before replacing its output folder. Keep both license notices
 with the staged assets.
+
+
+## Gobkit Insect runtime selection
+The owner-uploaded `gobkit-insect001-pack.zip` is kept as a source archive in this folder. Android CI validates its CC0 license and safely stages at most two GLB models plus PNG textures into `gobkit-runtime/`. The game loads only those two models as small animated background insects; shadows are disabled for mobile performance. The source ZIP is excluded from the exported APK.

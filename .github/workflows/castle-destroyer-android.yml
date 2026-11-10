@@ -101,6 +101,12 @@ jobs:
           test -s CastleDestroyer/assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png
           test ! -d CastleDestroyer/assets/vendor/kenney-castle-kit
           test ! -d CastleDestroyer/assets/vendor/kenney-ui-pack
+      - name: Stage lightweight Gobkit animated insects
+        run: |
+          set -euo pipefail
+          python3 CastleDestroyer/tools/stage_gobkit_runtime.py CastleDestroyer/assets/vendor/gobkit-insect001-pack.zip --destination CastleDestroyer/assets/vendor/gobkit-runtime --max-models 2
+          test "$(find CastleDestroyer/assets/vendor/gobkit-runtime -maxdepth 1 -name '*.glb' | wc -l)" -ge 1
+          python3 -m unittest discover -s CastleDestroyer/tests -p 'gobkit_runtime_test.py' -v
       - name: Test Kenney runtime staging
         run: python3 -m unittest discover -s CastleDestroyer/tests -p 'kenney_runtime_test.py' -v
       - name: Test asset importer safety
