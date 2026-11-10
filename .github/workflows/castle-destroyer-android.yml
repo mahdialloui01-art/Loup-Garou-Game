@@ -81,6 +81,10 @@ jobs:
         run: godot --headless --editor --path CastleDestroyer --quit
       - name: Strict GDScript parse check
         run: godot --headless --path CastleDestroyer --check-only --script res://scripts/game.gd
+      - name: Strict camera preview script parse check
+        run: godot --headless --path CastleDestroyer --check-only --script res://scripts/camera_a_preview.gd
+      - name: Run camera A preview smoke test
+        run: godot --headless --path CastleDestroyer res://scenes/camera_a_preview.tscn --quit-after 2
       - name: Test structural integrity graph
         run: godot --headless --path CastleDestroyer --script res://tests/structural_integrity_test.gd
       - name: Test Jolt debris simulation
