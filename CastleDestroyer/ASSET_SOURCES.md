@@ -1,30 +1,32 @@
 # Castle Destroyer — External Asset Sources
 
-## Imported runtime subset
+## Imported and selected assets
 
-| Source | Current runtime use | License | Status |
-|---|---|---|---|
-| [Kenney Castle Kit](https://kenney.nl/assets/castle-kit) | One authentic modular wall GLB used repeatedly around the Camera A fortress | CC0 1.0 | Included in the selected runtime bundle |
-| [Kenney UI Pack](https://kenney.nl/assets/ui-pack) | Flat depth button texture used by the battle HUD and Camera A controls | CC0 1.0 | Included in the selected runtime bundle |
-
-The project owner supplied both original ZIP archives. A small curated bundle is stored as base64 text at `vendor_sources/kenney-runtime-selected.zip.base64` so the binary files can be reconstructed deterministically by CI without committing full source archives or redundant FBX/OBJ variants.
+| Source | Intended use | Formats | License | Integration |
+|---|---|---|---|---|
+| [Kenney Castle Kit](https://kenney-assets.itch.io/castle-kit) | Modular walls, corner pieces, towers, gate, flag, catapult, trees and rocks | GLB, FBX, OBJ | CC0 1.0; original pack license retained | Imported by CI; 10 GLB models staged for Camera A |
+| [Kenney UI Pack](https://kenney.nl/assets/ui-pack) | HUD button skins and future interface elements | PNG, SVG, TTF, OGG | CC0 1.0; original pack license retained | Imported by CI; 3 button-state textures staged for game and Camera A |
 
 ## Runtime integration
 
-The Android workflow runs `tools/import_kenney_runtime_bundle.py` before Godot's editor import and test steps. It decodes the curated ZIP, checks safe archive paths and the presence of both CC0 license files, then stages these runtime files:
+The Android workflow downloads the two exact Kenney archives, verifies their SHA-256 hashes, and imports them with `tools/import_kenney_assets.py`. It then runs `tools/stage_kenney_runtime.py`, which keeps the complete source packs under `assets/vendor/kenney-castle-kit/` and `assets/vendor/kenney-ui-pack/`, while copying the 10 models and 3 UI textures actually referenced by the game into `assets/vendor/kenney-runtime/`.
 
-- `assets/vendor/kenney-runtime/models/wall.glb`
-- `assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png`
-- Both original per-pack license texts and `SOURCE_METADATA.json`
+The Camera A preview uses the GLB wall, corner, doorway, square tower and roof, flag, gate, catapult, tree and rock models. The game and Camera A HUDs use the Kenney button textures. Both original CC0 license files and source metadata are kept with the staged runtime assets.
 
-The angled Camera A preview uses the Kenney wall module for the perimeter. Towers, roofs, central keep and environmental details remain procedural primitives for now; the runtime bundle does not include those models. The Kenney UI texture is used by both the Camera A controls and the battle HUD, with a procedural fallback if the staged texture is missing.
+The downloads are pinned to the exact archive versions previously reviewed:
+- Castle Kit SHA-256: `921f3f73927bb23106cae34bc21d5ab4b033a9fc120475e96f714a406e3169df`
+- UI Pack SHA-256: `a8a14a234911eb648c062622915c93e79e94e97cb7f9f375a70f6617f1174318`
 
-## License and safety
+## Selection and mobile-performance rules
 
-Both supplied archives contain a per-pack `License.txt` naming Creative Commons Zero (CC0 1.0). Their texts are retained in the staged runtime folder. The selected bundle SHA-256 is:
+1. GLB is used for the runtime scene; FBX/OBJ remain in the retained source pack for future editing but are not loaded by the game.
+2. Jolt collision geometry remains separate from decorative render meshes. Prefer simplified collision shapes for mobile performance.
+3. Destruction should use intact meshes plus matching pre-fractured variants. Mesh swapping must preserve block health, team ownership and structural graph IDs.
+4. Keep the UI pack's source artwork and license; only the three button states are currently loaded at runtime.
+5. Do not mix optional third-party art into the castle scene unless its style and license have been checked.
 
-`31ff40ab261ba080b2bf34a60e86a1a02d26711ce5c3698c4f6b4ce1773eca41`
+## Import safety
 
-The importer rejects absolute paths, parent traversal, symlinks, unexpected/duplicate entries, excessive file counts, oversized base64 input and oversized expanded archives. It validates both CC0 notices before replacing the staged runtime directory.
+The importer rejects unsafe ZIP paths and symlinks, limits archive size and file count, and requires an explicit CC0 license. The runtime staging script verifies both licenses and every required runtime file before replacing the staged directory. Unit tests cover path traversal, license rejection, and missing runtime assets.
 
-The current subset is intentionally small for Android download size. More Castle Kit assets can be added later when their exact runtime roles are needed, while preserving the upstream license texts.
+Kenney's CC0 license permits personal, educational and commercial use without mandatory attribution. The original license files are retained as the authoritative per-pack notices.
