@@ -24,3 +24,10 @@ The dedicated GitHub Actions workflow imports the project, runs a headless smoke
 
 ## Production status
 This is an expanded playable foundation, not yet equivalent in content or production polish to Castle Busters. Major remaining work includes rigid-body structural collapse, animated troop classes, campaign map and bosses, original art/audio, cloud save, online matchmaking/PvP, anti-cheat, balancing and device QA. See ROADMAP.md.
+
+
+## Destruction technology
+- Godot 4.4 built-in **Jolt Physics** is selected for the 3D physics server. Jolt does not replace the 2D physics server; the current 2D projectile and presentation layer remains on Godot Physics 2D.
+- The enabled **Castle Destruction Toolkit** editor plugin exposes a reusable `PreFracturedAssembly` node. Assign pre-fractured `RigidBody3D` fragment scenes to swap an intact 3D source mesh for simulated fragments.
+- Structural stability is evaluated as a ground-connected support graph. A block disconnected from the ground support graph becomes eligible for cascading collapse.
+- The current battlefield still uses its 2D presentation and 2D debris simulation. Wiring the 3D Jolt fragment assemblies into the battlefield is a separate migration stage and is not claimed complete yet.
