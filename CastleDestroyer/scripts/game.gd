@@ -440,7 +440,7 @@ func _add_3d_soldiers(parent: Node3D, start: Vector3, tint: Color) -> void:
 		var torso_mesh := CapsuleMesh.new()
 		torso_mesh.radius = 0.065
 		torso_mesh.height = 0.28
-			var uniform := StandardMaterial3D.new()
+		var uniform := StandardMaterial3D.new()
 		uniform.albedo_color = tint
 		uniform.roughness = 0.76
 		torso_mesh.material = uniform
