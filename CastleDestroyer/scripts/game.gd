@@ -3,8 +3,11 @@ extends Control
 const StructuralIntegrityGraph = preload("res://addons/castle_destruction/structural_integrity_graph.gd")
 
 class FallingFortBlock extends RigidBody3D:
+	signal impact(position: Vector3, strength: float)
+
 	var block_size := Vector2(11.0, 12.0)
 	var block_color := Color("#c68a4c")
+	var impact_cooldown := 0.0
 
 	func _ready() -> void:
 		var shape := BoxShape3D.new()
@@ -24,8 +27,23 @@ class FallingFortBlock extends RigidBody3D:
 		material.friction = 0.82
 		material.bounce = 0.12
 		physics_material_override = material
+		axis_lock_linear_z = true
+		axis_lock_angular_x = true
+		axis_lock_angular_y = true
+		linear_damp = 0.18
+		angular_damp = 0.35
 		contact_monitor = true
 		max_contacts_reported = 4
+		body_entered.connect(_on_body_entered)
+
+	func _physics_process(delta: float) -> void:
+		impact_cooldown = maxf(0.0, impact_cooldown - delta)
+
+	func _on_body_entered(_other: Node) -> void:
+		var impact_speed := linear_velocity.length()
+		if impact_cooldown <= 0.0 and impact_speed >= 2.0:
+			impact.emit(global_position, impact_speed)
+			impact_cooldown = 0.2
 
 # Castle Destroyer - campaign foundation
 # All artwork is original procedural drawing; no Castle Busters assets are used.
@@ -283,16 +301,17 @@ func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity:
 			body.block_color = base_color
 			body.mass = clampf(shard_size.x * shard_size.y / 1800.0, 0.08, 0.65)
 			var shard_center := rect.position + Vector2((float(shard_x) + 0.5) * shard_size.x, (float(shard_y) + 0.5) * shard_size.y)
-			body.position = Vector3(shard_center.x * 0.01, -shard_center.y * 0.01, randf_range(-0.025, 0.025))
+			body.position = Vector3(shard_center.x * 0.01, -shard_center.y * 0.01, 0.0)
 			body.collision_layer = 1
 			body.collision_mask = 1
+			body.impact.connect(_on_debris_impact)
 			var away := (shard_center - impact).normalized()
 			if away.length_squared() < 0.01:
 				away = Vector2.UP
 			var inherited_velocity := Vector3(incoming_velocity.x * 0.072, -incoming_velocity.y * 0.072, 0.0)
 			var burst_velocity := Vector3(away.x, -away.y, 0.0) * randf_range(1.2, 2.8)
 			body.linear_velocity = inherited_velocity + burst_velocity + Vector3(randf_range(-0.6, 0.6), randf_range(-0.5, 0.5), randf_range(-0.8, 0.8))
-			body.angular_velocity = Vector3(randf_range(-1.8, 1.8), randf_range(-1.8, 1.8), randf_range(-2.8, 2.8))
+			body.angular_velocity = Vector3(0.0, 0.0, randf_range(-2.8, 2.8))
 			body.freeze = paused
 			physics_root.add_child(body)
 			falling_blocks.append(body)
@@ -553,9 +572,16 @@ func _apply_blast_to_debris(center: Vector2, radius: float, damage: int, incomin
 		body.apply_central_impulse(direction * base_force * falloff)
 		body.apply_torque_impulse(Vector3(randf_range(-2.0, 2.0), randf_range(-2.0, 2.0), randf_range(-3.0, 3.0)) * falloff)
 
+func _on_debris_impact(world_position: Vector3, strength: float) -> void:
+	var screen_position := Vector2(world_position.x * 100.0, -world_position.y * 100.0)
+	var amount := clampi(roundi(strength * 1.5), 3, 12)
+	_spawn_burst(screen_position, amount, "stone")
+
 func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
 	var particle_color := Color("#f97316") if kind == "fire" else Color("#a88b68")
 	for n in range(amount):
+		if particles.size() >= 260:
+			particles.remove_at(0)
 		particles.append({
 			"pos": pos,
 			"vel": Vector2(randf_range(-5.0, 5.0), randf_range(-8.0, 1.0)),
