@@ -519,18 +519,18 @@ func _draw() -> void:
 		draw_circle(aim_point, 9.0, Color("#fff3a3"))
 		var direction := (aim_point - PLAYER_CANNON).normalized()
 		var preview := PLAYER_CANNON + direction * 95.0
-		draw_line(PLAYER_CANNON, preview, Color("#ffffff").with_alpha(0.6), 3.0)
+		draw_line(PLAYER_CANNON, preview, Color(1.0, 1.0, 1.0, 0.6), 3.0)
 
 func _draw_castle_details() -> void:
 	# Flags and crenellations give the two forts distinct silhouettes.
 	for team_x in [90.0, 1010.0]:
-		var flag_x := team_x + 60.0
-		var flag_y := FLOOR_Y - 25.0 - 5.0 * 25.0 - 58.0
+		var flag_x: float = float(team_x) + 60.0
+		var flag_y: float = FLOOR_Y - 25.0 - 5.0 * 25.0 - 58.0
 		draw_line(Vector2(flag_x, flag_y + 45.0), Vector2(flag_x, flag_y - 8.0), Color("#59483c"), 4.0)
 		var flag_color := Color("#2563a6") if team_x < 500.0 else Color("#b91c1c")
 		draw_colored_polygon(PackedVector2Array([Vector2(flag_x, flag_y - 8.0), Vector2(flag_x + 38.0, flag_y + 1.0), Vector2(flag_x, flag_y + 12.0)]), flag_color)
 		for i in range(5):
-			var crenel_x := team_x + float(i) * 24.0
+			var crenel_x: float = float(team_x) + float(i) * 24.0
 			draw_rect(Rect2(crenel_x + 2.0, FLOOR_Y - 25.0 - 5.0 * 25.0 - 9.0, 10.0, 10.0), Color("#b9824c") if team_x < 500.0 else Color("#8994a6"))
 
 func _draw_soldiers() -> void:
