@@ -70,6 +70,7 @@ var quality_check_timer := 0.0
 var main_camera: Camera3D
 var player_cannon_node: Node3D
 var sun_light: DirectionalLight3D
+var sun_disc: MeshInstance3D
 var animated_flags: Array[Node3D] = []
 var camera_mode := 0
 var camera_zoom := 1.0
@@ -247,11 +248,31 @@ func _build_3d_battlefield() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	# Tactical elevated 3D overview: the camera looks down across the full siege lane.
 	camera.size = 8.4
-	camera.position = Vector3(6.4, 7.5, 10.8)
+	# Lower, shallower camera angle deliberately exposes the sky above the horizon.
+	camera.position = Vector3(6.4, -0.5, 14.5)
 	camera.current = true
 	world.add_child(camera)
 	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	main_camera = camera
+
+	# A dedicated emissive solar disc guarantees a visible sun on mobile renderers,
+	# while the procedural sky sun continues to provide the matching directional light.
+	sun_disc = MeshInstance3D.new()
+	sun_disc.name = "VisibleSunDisc"
+	var sun_disc_mesh := SphereMesh.new()
+	sun_disc_mesh.radius = 0.30
+	sun_disc_mesh.height = 0.60
+	var sun_disc_material := StandardMaterial3D.new()
+	sun_disc_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	sun_disc_material.albedo_color = Color("#fff1bd")
+	sun_disc_material.emission_enabled = true
+	sun_disc_material.emission = Color("#ffd77a")
+	sun_disc_material.emission_energy_multiplier = 2.4
+	sun_disc_material.disable_fog = true
+	sun_disc_mesh.material = sun_disc_material
+	sun_disc.mesh = sun_disc_mesh
+	world.add_child(sun_disc)
+	sun_disc.global_transform = camera.global_transform * Transform3D(Basis.IDENTITY, Vector3(0.0, 2.0, -32.0))
 	_add_3d_cannon(world, Vector3(2.05, -5.05, 0.28), Color("#c28a45"), false)
 	player_cannon_node = world.get_node_or_null("3DCannon")
 	_add_3d_cannon(world, Vector3(10.75, -5.05, 0.28), Color("#657b9b"), true)
@@ -1255,13 +1276,13 @@ func _animate_battlefield(delta: float) -> void:
 	if is_instance_valid(sun_light):
 		sun_light.rotation_degrees.z = -32.0 + sin(battlefield_time * 0.12) * 3.0
 	if is_instance_valid(main_camera):
-		var target := Vector3(6.4, 7.5, 10.8)
+		var target := Vector3(6.4, -0.5, 14.5)
 		var target_size := 8.4
 		if camera_mode == 1:
-			target = Vector3(3.2, 3.6, 8.0)
+			target = Vector3(3.2, -1.0, 12.0)
 			target_size = 5.4
 		elif camera_mode == 2:
-			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, 4.8, 11.5)
+			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, -0.7, 15.5)
 			target_size = 7.2
 		var focus := Vector3(6.4, -3.6, 0.0)
 		var base_offset := target - focus
@@ -1273,6 +1294,8 @@ func _animate_battlefield(delta: float) -> void:
 		main_camera.position = main_camera.position.lerp(focus + orbit_offset, minf(1.0, delta * 2.8))
 		main_camera.size = lerpf(main_camera.size, target_size * camera_zoom, minf(1.0, delta * 2.8))
 		main_camera.look_at(focus, Vector3.UP)
+		if is_instance_valid(sun_disc):
+			sun_disc.global_transform = main_camera.global_transform * Transform3D(Basis.IDENTITY, Vector3(0.0, 2.0, -32.0))
 
 func _step_projectiles(delta: float) -> void:
 	for i in range(projectiles.size() - 1, -1, -1):
