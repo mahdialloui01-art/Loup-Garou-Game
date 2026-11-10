@@ -45,8 +45,8 @@ class FallingFortBlock extends RigidBody3D:
 			impact.emit(global_position, impact_speed)
 			impact_cooldown = 0.2
 
-# Castle Destroyer - campaign foundation
-# All artwork is original procedural drawing; no Castle Busters assets are used.
+# Castle Destroyer - 3D destructible fort gameplay.
+# Kenney CC0 models are used for the environment and fort details.
 
 const FLOOR_Y := 555.0
 const PLAYER_CANNON := Vector2(205.0, 505.0)
@@ -110,7 +110,7 @@ func _ready() -> void:
 
 
 func _build_3d_battlefield() -> void:
-	# Render a real-time 3D battlefield behind the existing 2D combat layer.
+	# The battlefield and destructible castle geometry are rendered in 3D.
 	# The current hit-testing and structural graph remain authoritative.
 	battlefield_viewport = SubViewport.new()
 	battlefield_viewport.name = "Battlefield3DViewport"
@@ -148,52 +148,45 @@ func _build_3d_battlefield() -> void:
 	world.add_child(sun)
 
 	var ground := MeshInstance3D.new()
-	var ground_mesh := PlaneMesh.new()
-	ground_mesh.size = Vector2(40.0, 40.0)
+	ground.name = "SideViewGround"
+	var ground_mesh := BoxMesh.new()
+	ground_mesh.size = Vector3(16.0, 0.18, 1.2)
 	var ground_material := StandardMaterial3D.new()
 	ground_material.albedo_color = Color("#719454")
 	ground_material.roughness = 1.0
 	ground_mesh.material = ground_material
 	ground.mesh = ground_mesh
-	ground.position = Vector3(6.4, -0.08, 0.0)
+	ground.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01, 0.0)
 	world.add_child(ground)
 
-	_add_battlefield_castle(world, 1.5, Color("#315f91"))
-	_add_battlefield_castle(world, 11.0, Color("#a33c3c"))
-	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, 0.0, 3.0), Vector3(1.15, 1.15, 1.15), 180.0)
+	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, -5.45, -0.7), Vector3(0.55, 0.55, 0.55), 180.0)
 	for tree_position in [
-		Vector3(-1.4, 0.0, -2.2), Vector3(14.2, 0.0, -2.2),
-		Vector3(-1.2, 0.0, 3.2), Vector3(14.0, 0.0, 3.2)
+		Vector3(-0.25, -5.45, -0.9), Vector3(12.9, -5.45, -0.9)
 	]:
-		_add_battlefield_prop(world, "models/tree-large.glb", tree_position, Vector3(1.4, 1.4, 1.4))
+		_add_battlefield_prop(world, "models/tree-large.glb", tree_position, Vector3(0.55, 0.55, 0.55))
 
 	var camera := Camera3D.new()
 	camera.name = "MainBattlefieldCamera"
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 7.2
-	camera.position = Vector3(6.4, 8.2, 18.0)
-	camera.look_at(Vector3(6.4, 2.0, 0.0), Vector3.UP)
+	camera.position = Vector3(6.4, -3.6, 18.0)
+	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	camera.current = true
 	world.add_child(camera)
 
-func _add_battlefield_castle(parent: Node3D, center_x: float, flag_tint: Color) -> void:
-	var wall_y := 0.0
-	for x_offset in [-1.25, -0.4, 0.4, 1.25]:
-		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x + x_offset, wall_y, 0.0))
-		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x + x_offset, wall_y, -1.6))
-	for z_offset in [-1.2, -0.4, 0.4, 1.2]:
-		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x - 1.7, wall_y, z_offset), Vector3.ONE, 90.0)
-		_add_battlefield_prop(parent, "models/wall.glb", Vector3(center_x + 1.7, wall_y, z_offset), Vector3.ONE, 90.0)
-	for x_offset in [-1.7, 1.7]:
-		for z_offset in [-1.6, 0.0]:
-			_add_battlefield_prop(parent, "models/tower-square.glb", Vector3(center_x + x_offset, 0.0, z_offset), Vector3(1.15, 1.2, 1.15))
-			_add_battlefield_prop(parent, "models/tower-square-roof.glb", Vector3(center_x + x_offset, 1.05, z_offset), Vector3(1.05, 0.65, 1.05))
-			_add_battlefield_prop(parent, "models/flag.glb", Vector3(center_x + x_offset, 2.1, z_offset), Vector3.ONE)
-	_add_battlefield_prop(parent, "models/wall-doorway.glb", Vector3(center_x, 0.0, 0.0))
-	_add_battlefield_prop(parent, "models/gate.glb", Vector3(center_x, 0.05, 0.25))
-	_add_battlefield_prop(parent, "models/tower-square.glb", Vector3(center_x, 0.0, -0.8), Vector3(1.65, 1.75, 1.65))
-	_add_battlefield_prop(parent, "models/tower-square-roof.glb", Vector3(center_x, 1.55, -0.8), Vector3(1.5, 0.8, 1.5))
-
+func _add_battlefield_castle_details(origin_x: float, team: String) -> void:
+	# Kenney tower, roof and flag models frame the live destructible 3D wall.
+	var tint := Vector3.ONE
+	var left_x := origin_x * 0.01 - 0.08
+	var right_x := (origin_x + 5.0 * 24.0) * 0.01 + 0.08
+	var base_y := -(FLOOR_Y + 8.0) * 0.01 + 0.12
+	var world := battlefield_viewport.get_child(0) as Node3D
+	if world == null:
+		return
+	for tower_x in [left_x, right_x]:
+		_add_battlefield_prop(world, "models/tower-square.glb", Vector3(tower_x, base_y + 0.32, 0.16), Vector3(0.34, 0.42, 0.34))
+		_add_battlefield_prop(world, "models/tower-square-roof.glb", Vector3(tower_x, base_y + 0.68, 0.16), Vector3(0.34, 0.26, 0.34))
+		_add_battlefield_prop(world, "models/flag.glb", Vector3(tower_x, base_y + 1.03, 0.16), Vector3(0.3, 0.3, 0.3))
 func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
 	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
 	var packed := load(resource_path) as PackedScene
@@ -375,6 +368,7 @@ func _add_castle(origin_x: float, team: String, armor_level: int) -> void:
 	blocks.append(_make_block(tower_rect, team, armor_level + 2, armor_level + 2, "tower"))
 	var mast_rect := Rect2(origin_x + 49.0, FLOOR_Y - 25.0 - float(rows) * 25.0 - 45.0, 22.0, 45.0)
 	blocks.append(_make_block(mast_rect, team, armor_level + 1, armor_level + 1, "tower"))
+	_add_battlefield_castle_details(origin_x, team)
 
 func _create_physics_floor() -> void:
 	floor_body = StaticBody3D.new()
@@ -402,10 +396,35 @@ func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) 
 	var collision := CollisionShape3D.new()
 	collision.shape = shape
 	body.add_child(collision)
-	physics_root.add_child(body)
-	return {"rect": rect, "team": team, "hp": hp, "max_hp": max_hp, "kind": kind, "body": body}
 
-func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity: Vector2) -> void:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "DestructibleStoneMesh"
+	var block_mesh := BoxMesh.new()
+	block_mesh.size = shape.size
+	var surface := StandardMaterial3D.new()
+	surface.albedo_color = Color("#c68a4c") if team == "player" else Color("#8994a6")
+	surface.roughness = 0.92
+	surface.metallic = 0.0
+	block_mesh.material = surface
+	mesh_instance.mesh = block_mesh
+	body.add_child(mesh_instance)
+	physics_root.add_child(body)
+	return {"rect": rect, "team": team, "hp": hp, "max_hp": max_hp, "kind": kind, "body": body, "mesh": mesh_instance}
+
+func _update_block_visual(block: Dictionary) -> void:
+	var mesh_instance: MeshInstance3D = block.get("mesh")
+	if not is_instance_valid(mesh_instance):
+		return
+	var surface := StandardMaterial3D.new()
+	var base := Color("#c68a4c") if block["team"] == "player" else Color("#8994a6")
+	var health_ratio := float(block["hp"]) / float(maxi(1, block["max_hp"]))
+	surface.albedo_color = base.darkened(0.32) if health_ratio < 0.5 else base
+	surface.roughness = 0.92
+	var mesh := mesh_instance.mesh as BoxMesh
+	if mesh != null:
+		mesh.material = surface
+
+func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity: Vector2):
 	var rect: Rect2 = block["rect"]
 	var base_color := Color("#c68a4c") if block["team"] == "player" else Color("#8994a6")
 	# Mesh swap: replace one intact fort block with four pre-fractured 3D shards.
@@ -667,6 +686,7 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 			if i != direct_index and splash > 0.0:
 				applied = maxi(1, int(round(float(damage) * (1.0 - distance / splash))))
 			block["hp"] = int(block["hp"]) - applied
+			_update_block_visual(block)
 			if int(block["hp"]) <= 0:
 				remove_list.append(i)
 				_spawn_falling_block(block, pos, shot["vel"])
@@ -770,34 +790,7 @@ func _draw() -> void:
 		draw_texture_rect(battlefield_viewport.get_texture(), Rect2(Vector2.ZERO, size), false)
 	else:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#83c9eb"))
-	_draw_castle_details()
-	for block in blocks:
-		var rect: Rect2 = block["rect"]
-		var is_player: bool = block["team"] == "player"
-		var base_color := Color("#c68a4c") if is_player else Color("#8994a6")
-		if block["kind"] == "tower":
-			base_color = Color("#a66e3e") if is_player else Color("#69788d")
-		var hp_ratio := float(block["hp"]) / float(block["max_hp"])
-		if hp_ratio < 0.5:
-			base_color = base_color.darkened(0.25)
-		draw_rect(rect, base_color)
-		draw_rect(Rect2(rect.position + Vector2(2, 2), Vector2(rect.size.x - 4, 4)), base_color.lightened(0.35))
-		draw_rect(rect, Color("#514437"), false, 2.0)
-		if int(block["max_hp"]) > 1:
-			draw_rect(Rect2(rect.position + Vector2(4, rect.size.y - 5), Vector2(rect.size.x - 8, 3)), Color("#6c302b"))
-	for body in falling_blocks:
-		if not is_instance_valid(body):
-			continue
-		var screen_position := Vector2(body.position.x * 100.0, -body.position.y * 100.0)
-		draw_set_transform(screen_position, -body.rotation.z, Vector2.ONE)
-		var debris_rect := Rect2(-body.block_size * 0.5, body.block_size)
-		draw_rect(debris_rect, body.block_color)
-		draw_rect(Rect2(debris_rect.position + Vector2(1.0, 1.0), Vector2(maxf(1.0, debris_rect.size.x - 2.0), 3.0)), body.block_color.lightened(0.28))
-		draw_rect(debris_rect, Color("#514437"), false, 1.5)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	_draw_cannon(PLAYER_CANNON, Color("#245b8c"), false)
-	_draw_cannon(ENEMY_CANNON, Color("#9c3434"), true)
-	_draw_soldiers()
+	# Only projectiles and aiming guides remain 2D HUD overlays.
 	for shot in projectiles:
 		var color := Color("#ed563b") if shot["team"] == "enemy" else Color("#27384b")
 		if shot["kind"] == "fire":
