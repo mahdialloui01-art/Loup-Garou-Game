@@ -68,6 +68,9 @@ var sun_light: DirectionalLight3D
 var animated_flags: Array[Node3D] = []
 var camera_mode := 0
 var camera_zoom := 1.0
+var camera_pan := Vector2.ZERO
+var camera_touches: Dictionary = {}
+var previous_pinch_distance := 0.0
 var battlefield_time := 0.0
 var floor_body: StaticBody3D
 var projectiles: Array = []
@@ -860,24 +863,41 @@ func _input(event: InputEvent) -> void:
 		var magnify := event as InputEventMagnifyGesture
 		camera_zoom = clampf(camera_zoom / maxf(magnify.factor, 0.1), 0.62, 1.55)
 		return
-	if event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			camera_zoom = clampf(camera_zoom * 0.9, 0.62, 1.55)
-			return
-		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera_zoom = clampf(camera_zoom / 0.9, 0.62, 1.55)
-			return
 	if game_over or paused:
 		return
 	if event is InputEventScreenTouch:
 		var touch := event as InputEventScreenTouch
 		if touch.pressed:
-			_begin_aim(_screen_to_battlefield(touch.position))
+			camera_touches[touch.index] = touch.position
+			if camera_touches.size() == 1:
+				_begin_aim(_screen_to_battlefield(touch.position))
+			else:
+				aiming = false
+				previous_pinch_distance = _touch_distance()
+				queue_redraw()
 		else:
-			_end_aim(_screen_to_battlefield(touch.position))
-	elif event is InputEventScreenDrag and aiming:
-		aim_point = _screen_to_battlefield((event as InputEventScreenDrag).position)
-		queue_redraw()
+			camera_touches.erase(touch.index)
+			if camera_touches.size() < 2:
+				previous_pinch_distance = 0.0
+			if camera_touches.is_empty():
+				_end_aim(_screen_to_battlefield(touch.position))
+	elif event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		if camera_touches.has(drag.index):
+			var old_centroid := _touch_centroid()
+			camera_touches[drag.index] = drag.position
+			if camera_touches.size() >= 2:
+				var new_centroid := _touch_centroid()
+				var distance := _touch_distance()
+				if previous_pinch_distance > 0.0 and distance > 0.0:
+					camera_zoom = clampf(camera_zoom * previous_pinch_distance / distance, 0.62, 1.55)
+				previous_pinch_distance = distance
+				var pan_scale := main_camera.size * camera_zoom / 720.0
+				camera_pan += Vector2(-1.0, 1.0) * (new_centroid - old_centroid) * pan_scale
+				queue_redraw()
+			elif aiming:
+				aim_point = _screen_to_battlefield(drag.position)
+				queue_redraw()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_begin_aim(_screen_to_battlefield(event.position))
@@ -886,6 +906,18 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and aiming and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 		aim_point = _screen_to_battlefield(event.position)
 		queue_redraw()
+
+func _touch_centroid() -> Vector2:
+	var center := Vector2.ZERO
+	for point in camera_touches.values():
+		center += point
+	return center / maxf(float(camera_touches.size()), 1.0)
+
+func _touch_distance() -> float:
+	if camera_touches.size() < 2:
+		return 0.0
+	var points: Array = camera_touches.values()
+	return points[0].distance_to(points[1])
 
 func _begin_aim(pos: Vector2) -> void:
 	var cannon_distance := pos.distance_to(PLAYER_CANNON)
