@@ -23,6 +23,10 @@ This file tracks candidate assets reviewed for Castle Destroyer. Only assets who
 
 Kenney states that assets on its asset pages are public-domain CC0 and attribution is not required; the individual pack license must still be retained and checked at import time. The selected itch.io pages also display CC0 1.0. License terms should be rechecked before a commercial release.
 
+## Import tooling
+
+A guarded ZIP importer is available at `tools/import_kenney_assets.py`. It requires the upstream archive's explicit CC0 license file, rejects unsafe ZIP paths and symlinks, caps expanded size, and writes source metadata beside the imported files. Its safety tests run in Android CI. The importer is ready, but the original ZIP archives still need to be downloaded and staged; no art is yet integrated into a playable scene.
+
 ## Implementation note
 
 The source packs have been researched and selected, but their binary files have **not** yet been committed to this repository. Do not describe the art integration as complete until the actual source archives, license files, imported Godot resources, and in-game usage have been verified.
