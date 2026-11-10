@@ -1,6 +1,5 @@
 @tool
 extends Node3D
-class_name PreFracturedAssembly
 ## Runtime mesh-swap helper. Assign pre-fractured RigidBody3D scenes in the
 ## Inspector; each scene should contain its own MeshInstance3D and collision.
 
