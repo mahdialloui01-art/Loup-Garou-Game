@@ -80,6 +80,7 @@ var camera_orbit_pitch := 0.0
 var camera_touches: Dictionary = {}
 var previous_pinch_distance := 0.0
 var battlefield_time := 0.0
+var camera_shake_strength := 0.0
 var floor_body: StaticBody3D
 var projectiles: Array = []
 var particles: Array = []
@@ -1386,6 +1387,9 @@ func _animate_battlefield(delta: float) -> void:
 		pitch = clampf(pitch, 0.12, 1.32)
 		var orbit_offset := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * radius
 		main_camera.position = main_camera.position.lerp(focus + orbit_offset, minf(1.0, delta * 2.8))
+		if camera_shake_strength > 0.001:
+			main_camera.position += Vector3(randf_range(-1.0, 1.0), randf_range(-0.7, 0.7), 0.0) * camera_shake_strength
+			camera_shake_strength = move_toward(camera_shake_strength, 0.0, delta * 1.8)
 		main_camera.size = lerpf(main_camera.size, target_size * camera_zoom, minf(1.0, delta * 2.8))
 		main_camera.look_at(focus, Vector3.UP)
 		if is_instance_valid(sun_disc):
@@ -1404,6 +1408,7 @@ func _step_projectiles(delta: float) -> void:
 		var projectile_visual: MeshInstance3D = shot.get("visual")
 		if is_instance_valid(projectile_visual):
 			projectile_visual.position = Vector3(pos.x * 0.01, -pos.y * 0.01, 0.0)
+		_spawn_projectile_trail(pos, str(shot.get("kind", "stone")))
 
 		# Sweep the projectile through the actual 3D castle colliders. Friendly
 		# fort pieces and the ground are excluded so enemy shots pass their own wall.
@@ -1473,6 +1478,7 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 				score += applied * 12
 			blocks[i] = block
 	_spawn_burst(pos, 15 if splash > 0.0 else 7, shot["kind"])
+	camera_shake_strength = maxf(camera_shake_strength, 0.42 if shot["kind"] == "stone" else 0.72)
 	for i in range(remove_list.size() - 1, -1, -1):
 		blocks.remove_at(remove_list[i])
 	_collapse_unsupported_blocks("player" if team == "enemy" else "enemy", pos, shot["vel"])
@@ -1498,6 +1504,18 @@ func _on_debris_impact(world_position: Vector3, strength: float) -> void:
 	var screen_position := Vector2(world_position.x * 100.0, -world_position.y * 100.0)
 	var amount := clampi(roundi(strength * 1.5), 3, 12)
 	_spawn_burst(screen_position, amount, "stone")
+
+func _spawn_projectile_trail(pos: Vector2, kind: String) -> void:
+	if particles.size() >= 260:
+		return
+	var trail_color := Color("#ff9b38") if kind == "fire" else Color("#8f9aa5") if kind == "bomb" else Color("#d6c8b4")
+	particles.append({
+		"pos": pos - Vector2(3.0, 3.0),
+		"vel": Vector2(randf_range(-0.7, 0.7), randf_range(-0.7, 0.7)),
+		"life": 0.16 if kind == "fire" else 0.11,
+		"size": 5.0 if kind == "fire" else 3.2,
+		"color": trail_color
+	})
 
 func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
 	var particle_color := Color("#f97316") if kind == "fire" else Color("#a88b68")
