@@ -31,3 +31,10 @@ This is an expanded playable foundation, not yet equivalent in content or produc
 - The enabled **Castle Destruction Toolkit** editor plugin exposes a reusable `PreFracturedAssembly` node. Assign pre-fractured `RigidBody3D` fragment scenes to swap an intact 3D source mesh for simulated fragments.
 - Structural stability is evaluated as a ground-connected support graph. A block disconnected from the ground support graph becomes eligible for cascading collapse.
 - The battlefield keeps its 2D drawing, aiming and projectile presentation, while fort collision bodies and falling debris now run as 3D bodies under Jolt. Each destroyed block swaps into four simulated 3D mesh shards; the editor plugin also supports authored pre-fractured fragment scenes for larger props.
+
+
+### Jolt debris verification
+- Fractured debris is constrained to the battle plane using 3D axis locks, with friction and damping tuned for side-view motion.
+- Debris collisions emit impact particles with a cooldown; active debris is capped at 70 and particles at 260 to bound runtime work on mobile devices.
+- CI runs both `tests/structural_integrity_test.gd` and `tests/jolt_debris_test.gd`, in addition to strict script parsing, headless startup, and Android APK export.
+- Reusable debris object pooling remains a separate optimization task; the current implementation enforces bounded counts and removes expired debris.
