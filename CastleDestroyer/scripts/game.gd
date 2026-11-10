@@ -62,6 +62,11 @@ var blocks: Array = []
 var falling_blocks: Array = []
 var physics_root: Node3D
 var battlefield_viewport: SubViewport
+var battlefield_base_size := Vector2i.ZERO
+var battlefield_max_size := Vector2i.ZERO
+var battlefield_render_scale := 1.0
+var fps_smoothed := 60.0
+var quality_check_timer := 0.0
 var main_camera: Camera3D
 var player_cannon_node: Node3D
 var sun_light: DirectionalLight3D
@@ -141,14 +146,16 @@ func _build_3d_battlefield() -> void:
 	var target_size := Vector2(3840.0, 2160.0)
 	if initial_size.y > initial_size.x:
 		target_size = Vector2(2160.0, 3840.0)
-	var render_scale := minf(4.0, minf(
+	battlefield_base_size = Vector2i(maxi(roundi(initial_size.x), 1), maxi(roundi(initial_size.y), 1))
+	battlefield_render_scale = minf(4.0, minf(
 		target_size.x / maxf(initial_size.x, 1.0),
 		target_size.y / maxf(initial_size.y, 1.0)
 	))
-	battlefield_viewport.size = Vector2i(
-		maxi(roundi(initial_size.x * render_scale), 1),
-		maxi(roundi(initial_size.y * render_scale), 1)
+	battlefield_max_size = Vector2i(
+		maxi(roundi(initial_size.x * battlefield_render_scale), 1),
+		maxi(roundi(initial_size.y * battlefield_render_scale), 1)
 	)
+	battlefield_viewport.size = battlefield_max_size
 	battlefield_viewport.disable_3d = false
 	battlefield_viewport.transparent_bg = false
 	battlefield_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -170,8 +177,8 @@ func _build_3d_battlefield() -> void:
 	sky_material.ground_bottom_color = Color("#344b39")
 	sky_material.ground_horizon_color = Color("#8b9b83")
 	# Render a visible solar disc in the procedural sky, aligned with the sun light.
-	sky_material.sun_angle_max = 1.35
-	sky_material.sun_curve = 0.12
+	sky_material.sun_angle_max = 0.8
+	sky_material.sun_curve = 0.18
 	sky_material.use_debanding = true
 	sky.sky_material = sky_material
 	environment.sky = sky
@@ -191,8 +198,9 @@ func _build_3d_battlefield() -> void:
 	environment.fog_enabled = true
 	environment.fog_light_color = Color("#a9bac0")
 	environment.fog_density = 0.0045
-	environment.volumetric_fog_enabled = true
-	environment.volumetric_fog_density = 0.018
+	# Volumetric fog is disabled on mobile: it is expensive at 4K.
+	# The high-quality distance fog remains enabled for atmospheric depth.
+	environment.volumetric_fog_enabled = false
 	environment_node.environment = environment
 	world.add_child(environment_node)
 
@@ -201,8 +209,10 @@ func _build_3d_battlefield() -> void:
 	sun.light_energy = 1.5
 	sun.light_color = Color("#fff0d5")
 	sun.shadow_enabled = true
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-	sun.directional_shadow_max_distance = 28.0
+	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_AND_SKY
+	# Two cascades retain clear castle shadows with substantially less GPU work.
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+	sun.directional_shadow_max_distance = 22.0
 	world.add_child(sun)
 	sun_light = sun
 
@@ -1191,7 +1201,33 @@ func _end_aim(pos: Vector2) -> void:
 		_update_hud()
 	queue_redraw()
 
+func _update_render_quality(delta: float) -> void:
+	# Preserve the 4K ceiling, but dynamically lower only the render target
+	# when the phone GPU is overloaded, then restore it when performance recovers.
+	if battlefield_viewport == null or battlefield_base_size == Vector2i.ZERO:
+		return
+	fps_smoothed = lerpf(fps_smoothed, 1.0 / maxf(delta, 0.001), 0.08)
+	quality_check_timer += delta
+	if quality_check_timer < 1.25:
+		return
+	quality_check_timer = 0.0
+	var previous_scale := battlefield_render_scale
+	if fps_smoothed < 48.0:
+		battlefield_render_scale = maxf(1.5, battlefield_render_scale - 0.25)
+	elif fps_smoothed > 58.0:
+		var max_scale := minf(
+			float(battlefield_max_size.x) / float(battlefield_base_size.x),
+			float(battlefield_max_size.y) / float(battlefield_base_size.y)
+		)
+		battlefield_render_scale = minf(max_scale, battlefield_render_scale + 0.15)
+	if not is_equal_approx(previous_scale, battlefield_render_scale):
+		battlefield_viewport.size = Vector2i(
+			maxi(roundi(float(battlefield_base_size.x) * battlefield_render_scale), 1),
+			maxi(roundi(float(battlefield_base_size.y) * battlefield_render_scale), 1)
+		)
+
 func _process(delta: float) -> void:
+	_update_render_quality(delta)
 	if not game_started:
 		return
 	_animate_battlefield(delta)
