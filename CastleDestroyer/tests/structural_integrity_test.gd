@@ -4,9 +4,9 @@ const StructuralIntegrityGraph = preload("res://addons/castle_destruction/struct
 
 func _initialize() -> void:
 	var blocks: Array = [
-		{"team": "player", "rect": Rect2(0.0, 90.0, 20.0, 10.0)},
-		{"team": "player", "rect": Rect2(0.0, 80.0, 20.0, 10.0)},
-		{"team": "player", "rect": Rect2(80.0, 50.0, 20.0, 10.0)}
+		{"team": "player", "rect": Rect2(0.0, 75.0, 20.0, 25.0)},
+		{"team": "player", "rect": Rect2(0.0, 50.0, 20.0, 25.0)},
+		{"team": "player", "rect": Rect2(80.0, 20.0, 20.0, 25.0)}
 	]
 	var unsupported: Array[int] = StructuralIntegrityGraph.find_unsupported(blocks, "player", 100.0)
 	if unsupported != [2]:
