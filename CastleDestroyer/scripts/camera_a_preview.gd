@@ -60,34 +60,57 @@ func _build_world() -> void:
 	add_child(camera)
 
 func _build_castle() -> void:
-	# Raised stone platform and a compact, readable fortress silhouette.
+	# Raised foundation remains procedural; all visible fortress art is Kenney GLB.
 	_add_box(Vector3(0.0, 0.15, 0.0), Vector3(13.0, 0.5, 10.0), Color("#8b806c"))
 	_add_box(Vector3(0.0, 0.48, 0.0), Vector3(11.8, 0.18, 8.8), Color("#b6a58a"))
+	var wall_y := 0.57
 
-	var wall_color := Color("#b9aa91")
-	_add_box(Vector3(0.0, 1.45, -3.65), Vector3(10.5, 2.0, 0.55), wall_color)
-	_add_box(Vector3(0.0, 1.45, 3.65), Vector3(10.5, 2.0, 0.55), wall_color)
-	_add_box(Vector3(-5.0, 1.45, 0.0), Vector3(0.55, 2.0, 7.0), wall_color)
-	_add_box(Vector3(5.0, 1.45, 0.0), Vector3(0.55, 2.0, 7.0), wall_color)
+	# Modular perimeter walls with a real doorway on the siege-facing side.
+	for x in range(-4, 5):
+		_add_kenney_model("models/wall.glb", Vector3(float(x), wall_y, -3.5))
+		_add_kenney_model("models/wall.glb", Vector3(float(x), wall_y, 3.5))
+	for z in range(-2, 3):
+		_add_kenney_model("models/wall.glb", Vector3(-4.5, wall_y, float(z)), Vector3.ONE, 90.0)
+		_add_kenney_model("models/wall.glb", Vector3(4.5, wall_y, float(z)), Vector3.ONE, 90.0)
+	for x in [-4.5, 4.5]:
+		for z in [-3.5, 3.5]:
+			_add_kenney_model("models/wall-corner.glb", Vector3(x, wall_y, z))
 
-	for x in [-5.0, 5.0]:
-		for z in [-3.65, 3.65]:
-			_add_tower(Vector3(x, 0.5, z))
+	# Four fortified towers, assembled from the Castle Kit tower and roof pieces.
+	for x in [-4.8, 4.8]:
+		for z in [-3.8, 3.8]:
+			_add_kenney_model("models/tower-square.glb", Vector3(x, wall_y, z), Vector3(1.45, 1.55, 1.45))
+			_add_kenney_model("models/tower-square-roof.glb", Vector3(x, wall_y + 1.25, z), Vector3(1.35, 0.72, 1.35))
+			_add_kenney_model("models/flag.glb", Vector3(x, wall_y + 2.8, z), Vector3(1.2, 1.2, 1.2))
 
-	# Inner keep, roof and gatehouse.
-	_add_box(Vector3(0.0, 2.0, -0.2), Vector3(3.6, 3.2, 3.0), Color("#a99a82"))
-	_add_roof(Vector3(0.0, 4.0, -0.2), Vector3(4.0, 1.6, 3.4), Color("#536d83"))
-	_add_box(Vector3(0.0, 1.45, 3.7), Vector3(2.2, 2.0, 0.7), Color("#8e7961"))
-	_add_box(Vector3(0.0, 1.1, 4.08), Vector3(1.1, 1.3, 0.08), Color("#493d32"))
+	_add_kenney_model("models/wall-doorway.glb", Vector3(0.0, wall_y, 3.5))
+	_add_kenney_model("models/gate.glb", Vector3(0.0, wall_y + 0.05, 3.78), Vector3(1.0, 1.0, 1.0))
 
-	# Low-detail siege cannon in the foreground to establish the player's view.
-	_add_box(Vector3(0.0, 0.9, 7.0), Vector3(1.3, 0.35, 1.0), Color("#493c31"))
-	_add_cylinder(Vector3(0.0, 1.45, 6.7), 0.28, 1.8, Color("#303b45"), Vector3(-18.0, 0.0, 0.0))
+	# Keep and roof give the fortress a recognizable central landmark.
+	_add_kenney_model("models/tower-square.glb", Vector3(0.0, wall_y, -0.35), Vector3(2.65, 2.7, 2.65))
+	_add_kenney_model("models/tower-square-roof.glb", Vector3(0.0, wall_y + 2.55, -0.35), Vector3(2.45, 1.05, 2.45))
 
-	# Sparse trees outside the fort give scale without hiding the walls.
-	for p in [Vector3(-8.0, 0.0, -4.0), Vector3(8.0, 0.0, -5.0), Vector3(-8.0, 0.0, 5.0), Vector3(8.0, 0.0, 5.0)]:
-		_add_cylinder(p + Vector3(0.0, 0.8, 0.0), 0.18, 1.6, Color("#6b4a32"))
-		_add_sphere(p + Vector3(0.0, 2.0, 0.0), 1.15, Color("#47764a"))
+	# Siege catapult and environmental props are also real Kenney assets.
+	_add_kenney_model("models/siege-catapult.glb", Vector3(0.0, 0.46, 7.0), Vector3(1.45, 1.45, 1.45), 180.0)
+	for p in [Vector3(-8.0, 0.0, -4.5), Vector3(8.0, 0.0, -4.5), Vector3(-8.0, 0.0, 5.0), Vector3(8.0, 0.0, 5.0)]:
+		_add_kenney_model("models/tree-large.glb", p, Vector3(2.0, 2.0, 2.0))
+	for p in [Vector3(-6.5, 0.45, 0.0), Vector3(6.5, 0.45, 1.0)]:
+		_add_kenney_model("models/rocks-large.glb", p, Vector3(1.5, 1.5, 1.5))
+
+func _add_kenney_model(relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
+	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
+	var packed := load(resource_path) as PackedScene
+	if packed == null:
+		push_warning("Missing Kenney model: " + resource_path)
+		return
+	var instance := packed.instantiate() as Node3D
+	if instance == null:
+		push_warning("Kenney model is not a Node3D scene: " + resource_path)
+		return
+	instance.position = pos
+	instance.scale = scale_value
+	instance.rotation.y = deg_to_rad(yaw_degrees)
+	add_child(instance)
 
 func _add_tower(base: Vector3) -> void:
 	_add_box(base + Vector3(0.0, 1.55, 0.0), Vector3(1.5, 3.1, 1.5), Color("#a99a82"))
@@ -159,22 +182,49 @@ func _build_hud() -> void:
 	back.text = "BACK TO GAME"
 	back.custom_minimum_size = Vector2(170.0, 42.0)
 	back.pressed.connect(_return_to_game)
+	_apply_kenney_button(back, Color("#244e70"))
 	row.add_child(back)
 	var zoom_out := Button.new()
 	zoom_out.text = "−"
 	zoom_out.custom_minimum_size = Vector2(48.0, 42.0)
 	zoom_out.pressed.connect(func(): _zoom(1.5))
+	_apply_kenney_button(zoom_out, Color("#315c78"))
 	row.add_child(zoom_out)
 	var zoom_in := Button.new()
 	zoom_in.text = "+"
 	zoom_in.custom_minimum_size = Vector2(48.0, 42.0)
 	zoom_in.pressed.connect(func(): _zoom(-1.5))
+	_apply_kenney_button(zoom_in, Color("#315c78"))
 	row.add_child(zoom_in)
 	hint_label = Label.new()
 	hint_label.text = "CAMERA A  |  DRAG TO ORBIT  |  USE +/- TO ZOOM"
 	hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(hint_label)
+
+func _apply_kenney_button(button: Button, tint: Color) -> void:
+	var normal_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png") as Texture2D
+	var hover_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_gloss.png") as Texture2D
+	var pressed_texture := load("res://assets/vendor/kenney-runtime/ui/button_rectangle_depth_border.png") as Texture2D
+	if normal_texture == null or hover_texture == null or pressed_texture == null:
+		return
+	for entry in [
+		{"name": "normal", "texture": normal_texture, "tint": tint},
+		{"name": "hover", "texture": hover_texture, "tint": tint.lightened(0.12)},
+		{"name": "pressed", "texture": pressed_texture, "tint": tint.darkened(0.12)}
+	]:
+		var style := StyleBoxTexture.new()
+		style.texture = entry["texture"]
+		style.modulate_color = entry["tint"]
+		style.texture_margin_left = 16.0
+		style.texture_margin_right = 16.0
+		style.texture_margin_top = 12.0
+		style.texture_margin_bottom = 12.0
+		style.content_margin_left = 12.0
+		style.content_margin_right = 12.0
+		style.content_margin_top = 6.0
+		style.content_margin_bottom = 6.0
+		button.add_theme_stylebox_override(entry["name"], style)
 
 func _update_camera() -> void:
 	if not is_instance_valid(camera):
