@@ -2,28 +2,30 @@ extends Control
 
 const StructuralIntegrityGraph = preload("res://addons/castle_destruction/structural_integrity_graph.gd")
 
-class FallingFortBlock extends RigidBody2D:
-	var block_size := Vector2(22.0, 23.0)
+class FallingFortBlock extends RigidBody3D:
+	var block_size := Vector2(11.0, 12.0)
 	var block_color := Color("#c68a4c")
 
 	func _ready() -> void:
-		var shape := RectangleShape2D.new()
-		shape.size = block_size
-		var collision := CollisionShape2D.new()
+		var shape := BoxShape3D.new()
+		shape.size = Vector3(maxf(block_size.x * 0.01, 0.02), maxf(block_size.y * 0.01, 0.02), 0.12)
+		var collision := CollisionShape3D.new()
 		collision.shape = shape
 		add_child(collision)
+		var mesh_instance := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = shape.size
+		var surface := StandardMaterial3D.new()
+		surface.albedo_color = block_color
+		mesh.material = surface
+		mesh_instance.mesh = mesh
+		add_child(mesh_instance)
 		var material := PhysicsMaterial.new()
 		material.friction = 0.82
 		material.bounce = 0.12
 		physics_material_override = material
 		contact_monitor = true
 		max_contacts_reported = 4
-
-	func _draw() -> void:
-		var rect := Rect2(-block_size * 0.5, block_size)
-		draw_rect(rect, block_color)
-		draw_rect(Rect2(rect.position + Vector2(2.0, 2.0), Vector2(block_size.x - 4.0, 4.0)), block_color.lightened(0.32))
-		draw_rect(rect, Color("#514437"), false, 2.0)
 
 # Castle Destroyer - campaign foundation
 # All artwork is original procedural drawing; no Castle Busters assets are used.
@@ -40,8 +42,8 @@ const WEAPONS := [
 
 var blocks: Array = []
 var falling_blocks: Array = []
-var physics_root: Node2D
-var floor_body: StaticBody2D
+var physics_root: Node3D
+var floor_body: StaticBody3D
 var projectiles: Array = []
 var particles: Array = []
 var score := 0
@@ -237,12 +239,12 @@ func _add_castle(origin_x: float, team: String, armor_level: int) -> void:
 	blocks.append(_make_block(mast_rect, team, armor_level + 1, armor_level + 1, "tower"))
 
 func _create_physics_floor() -> void:
-	floor_body = StaticBody2D.new()
-	floor_body.name = "GroundCollider"
-	floor_body.position = Vector2(640.0, FLOOR_Y + 8.0)
-	var shape := RectangleShape2D.new()
-	shape.size = Vector2(1500.0, 16.0)
-	var collision := CollisionShape2D.new()
+	floor_body = StaticBody3D.new()
+	floor_body.name = "GroundCollider3D"
+	floor_body.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01, 0.0)
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(15.0, 0.16, 1.0)
+	var collision := CollisionShape3D.new()
 	collision.shape = shape
 	floor_body.add_child(collision)
 	physics_root.add_child(floor_body)
@@ -254,38 +256,47 @@ func _clear_physics_castle() -> void:
 	falling_blocks.clear()
 
 func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) -> Dictionary:
-	var body := StaticBody2D.new()
-	body.position = rect.get_center()
-	var shape := RectangleShape2D.new()
-	shape.size = rect.size
-	var collision := CollisionShape2D.new()
+	var body := StaticBody3D.new()
+	var center := rect.get_center()
+	body.position = Vector3(center.x * 0.01, -center.y * 0.01, 0.0)
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(rect.size.x * 0.01, rect.size.y * 0.01, 0.12)
+	var collision := CollisionShape3D.new()
 	collision.shape = shape
 	body.add_child(collision)
 	physics_root.add_child(body)
 	return {"rect": rect, "team": team, "hp": hp, "max_hp": max_hp, "kind": kind, "body": body}
 
 func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity: Vector2) -> void:
-	if falling_blocks.size() >= 70:
-		var oldest: RigidBody2D = falling_blocks.pop_front()
-		if is_instance_valid(oldest):
-			oldest.queue_free()
-	var body := FallingFortBlock.new()
 	var rect: Rect2 = block["rect"]
-	body.block_size = rect.size
-	body.block_color = Color("#c68a4c") if block["team"] == "player" else Color("#8994a6")
-	body.mass = clampf(rect.size.x * rect.size.y / 500.0, 0.8, 3.5)
-	body.position = rect.get_center()
-	body.collision_layer = 1
-	body.collision_mask = 1
-	var away := (rect.get_center() - impact).normalized()
-	if away.length_squared() < 0.01:
-		away = Vector2.UP
-	body.linear_velocity = incoming_velocity * 0.12 + away * randf_range(2.5, 6.0)
-	body.angular_velocity = randf_range(-2.8, 2.8)
-	body.freeze = paused
-	physics_root.add_child(body)
-	falling_blocks.append(body)
-	var old_body: StaticBody2D = block["body"]
+	var base_color := Color("#c68a4c") if block["team"] == "player" else Color("#8994a6")
+	# Mesh swap: replace one intact fort block with four pre-fractured 3D shards.
+	var shard_size := rect.size * 0.5
+	for shard_y in range(2):
+		for shard_x in range(2):
+			while falling_blocks.size() >= 70:
+				var oldest: RigidBody3D = falling_blocks.pop_front()
+				if is_instance_valid(oldest):
+					oldest.queue_free()
+			var body := FallingFortBlock.new()
+			body.block_size = shard_size
+			body.block_color = base_color
+			body.mass = clampf(shard_size.x * shard_size.y / 1800.0, 0.08, 0.65)
+			var shard_center := rect.position + Vector2((float(shard_x) + 0.5) * shard_size.x, (float(shard_y) + 0.5) * shard_size.y)
+			body.position = Vector3(shard_center.x * 0.01, -shard_center.y * 0.01, randf_range(-0.025, 0.025))
+			body.collision_layer = 1
+			body.collision_mask = 1
+			var away := (shard_center - impact).normalized()
+			if away.length_squared() < 0.01:
+				away = Vector2.UP
+			var inherited_velocity := Vector3(incoming_velocity.x * 0.072, -incoming_velocity.y * 0.072, 0.0)
+			var burst_velocity := Vector3(away.x, -away.y, 0.0) * randf_range(1.2, 2.8)
+			body.linear_velocity = inherited_velocity + burst_velocity + Vector3(randf_range(-0.6, 0.6), randf_range(-0.5, 0.5), randf_range(-0.8, 0.8))
+			body.angular_velocity = Vector3(randf_range(-1.8, 1.8), randf_range(-1.8, 1.8), randf_range(-2.8, 2.8))
+			body.freeze = paused
+			physics_root.add_child(body)
+			falling_blocks.append(body)
+	var old_body: StaticBody3D = block["body"]
 	if is_instance_valid(old_body):
 		old_body.queue_free()
 
@@ -309,8 +320,8 @@ func _collapse_unsupported_blocks(team: String, impact: Vector2, incoming_veloci
 
 func _cleanup_falling_blocks() -> void:
 	for i in range(falling_blocks.size() - 1, -1, -1):
-		var body: RigidBody2D = falling_blocks[i]
-		if not is_instance_valid(body) or body.position.y > 900.0:
+		var body: RigidBody3D = falling_blocks[i]
+		if not is_instance_valid(body) or body.position.y < -9.0:
 			if is_instance_valid(body):
 				body.queue_free()
 			falling_blocks.remove_at(i)
@@ -526,20 +537,21 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 	_collapse_unsupported_blocks("player" if team == "enemy" else "enemy", pos, shot["vel"])
 
 func _apply_blast_to_debris(center: Vector2, radius: float, damage: int, incoming_velocity: Vector2) -> void:
-	var base_force := incoming_velocity.length() * 1.8 + float(damage) * 12.0
+	var base_force := incoming_velocity.length() * 0.012 + float(damage) * 0.12
+	var blast_center := Vector3(center.x * 0.01, -center.y * 0.01, 0.0)
 	for body in falling_blocks:
 		if not is_instance_valid(body) or body.freeze:
 			continue
-		var offset: Vector2 = body.global_position - center
-		var distance: float = offset.length()
+		var offset: Vector3 = body.global_position - blast_center
+		var distance: float = offset.length() * 100.0
 		if distance > radius:
 			continue
-		var direction: Vector2 = offset.normalized()
+		var direction: Vector3 = offset.normalized()
 		if direction.length_squared() < 0.01:
-			direction = Vector2.UP
+			direction = Vector3.UP
 		var falloff: float = 1.0 - distance / radius
 		body.apply_central_impulse(direction * base_force * falloff)
-		body.apply_torque_impulse(randf_range(-3.0, 3.0) * falloff)
+		body.apply_torque_impulse(Vector3(randf_range(-2.0, 2.0), randf_range(-2.0, 2.0), randf_range(-3.0, 3.0)) * falloff)
 
 func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
 	var particle_color := Color("#f97316") if kind == "fire" else Color("#a88b68")
@@ -635,6 +647,16 @@ func _draw() -> void:
 		draw_rect(rect, Color("#514437"), false, 2.0)
 		if int(block["max_hp"]) > 1:
 			draw_rect(Rect2(rect.position + Vector2(4, rect.size.y - 5), Vector2(rect.size.x - 8, 3)), Color("#6c302b"))
+	for body in falling_blocks:
+		if not is_instance_valid(body):
+			continue
+		var screen_position := Vector2(body.position.x * 100.0, -body.position.y * 100.0)
+		draw_set_transform(screen_position, -body.rotation.z, Vector2.ONE)
+		var debris_rect := Rect2(-body.block_size * 0.5, body.block_size)
+		draw_rect(debris_rect, body.block_color)
+		draw_rect(Rect2(debris_rect.position + Vector2(1.0, 1.0), Vector2(maxf(1.0, debris_rect.size.x - 2.0), 3.0)), body.block_color.lightened(0.28))
+		draw_rect(debris_rect, Color("#514437"), false, 1.5)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_cannon(PLAYER_CANNON, Color("#245b8c"), false)
 	_draw_cannon(ENEMY_CANNON, Color("#9c3434"), true)
 	_draw_soldiers()
