@@ -131,6 +131,8 @@ jobs:
         run: godot --headless --path CastleDestroyer res://scenes/camera_a_preview.tscn --quit-after 2
       - name: Test main 3D battlefield integration
         run: godot --headless --path CastleDestroyer --script res://tests/main_3d_battlefield_test.gd
+      - name: Test procedural game audio and firing feedback
+        run: godot --headless --path CastleDestroyer --script res://tests/audio_system_test.gd
       - name: Test structural integrity graph
         run: godot --headless --path CastleDestroyer --script res://tests/structural_integrity_test.gd
       - name: Test Jolt debris simulation

@@ -804,6 +804,26 @@ func _start_game() -> void:
 func _show_settings() -> void:
 	settings_panel.visible = true
 
+func _set_music_enabled(enabled: bool) -> void:
+	music_enabled = enabled
+	audio_manager.set_music_enabled(enabled)
+	_save_progress()
+
+func _set_sfx_enabled(enabled: bool) -> void:
+	sfx_enabled = enabled
+	audio_manager.set_sfx_enabled(enabled)
+	_save_progress()
+
+func _set_music_volume(value: float) -> void:
+	music_volume = clampf(value, 0.0, 1.0)
+	audio_manager.set_music_volume(music_volume)
+	_save_progress()
+
+func _set_sfx_volume(value: float) -> void:
+	sfx_volume = clampf(value, 0.0, 1.0)
+	audio_manager.set_sfx_volume(sfx_volume)
+	_save_progress()
+
 func _exit_game() -> void:
 	get_tree().quit()
 
