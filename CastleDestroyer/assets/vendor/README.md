@@ -1,27 +1,29 @@
-# Kenney asset staging
+# Kenney runtime asset staging
 
-The project is prepared to import the official CC0 archives without committing
-unverified third-party mirrors.
+The repository contains a curated runtime subset from the two CC0 ZIP archives
+supplied by the project owner. It intentionally does not vendor full FBX/OBJ
+source variants or unused UI files.
 
-1. Download the official [Castle Kit](https://kenney-assets.itch.io/castle-kit)
-   ZIP (free / name-your-price) and the [UI Pack](https://kenney.nl/assets/ui-pack).
-2. Keep the original ZIPs outside the repository.
-3. From the repository root, run:
+The Android CI workflow runs:
 
-   ```sh
-   python3 CastleDestroyer/tools/import_kenney_assets.py castle /path/to/kenney_castle-kit.zip
-   python3 CastleDestroyer/tools/import_kenney_assets.py ui /path/to/kenney_ui-pack.zip
-   ```
+```sh
+python3 CastleDestroyer/tools/import_kenney_runtime_bundle.py \
+  CastleDestroyer/vendor_sources/kenney-runtime-selected.zip.base64
+```
 
-4. Open `CastleDestroyer/project.godot` in Godot 4.4.1 so Godot imports the
-   glTF/OBJ models and PNG textures.
-5. Keep `SOURCE_METADATA.json` and the original pack license beside each
-   imported pack. Do not remove or rewrite the upstream license.
+This safely reconstructs and stages the selected content under
+`CastleDestroyer/assets/vendor/kenney-runtime/`:
 
-The importer rejects archives without an explicit CC0 license, path traversal,
-ZIP symlinks, excessive file counts, and oversized expanded archives. It stages
-into a temporary directory and only replaces the destination after extraction
-and license validation succeed.
+- `models/wall.glb` — the wall module used by the angled Camera A fortress
+- `ui/button_rectangle_depth_flat.png` — the button texture used by the HUD
+- `LICENSES/` — the original CC0 license text from both Kenney packs
+- `SOURCE_METADATA.json` — source URLs, subset and bundle hash
 
-**Status:** importer tooling is committed; source ZIP binaries have not yet
-been obtained or imported, and no game scene is claiming to use these assets yet.
+The script rejects unsafe paths, symlinks, unexpected archive members, invalid
+CC0 license text and archives that exceed its size/count limits. It stages the
+files in a temporary directory and replaces the runtime destination only after
+validation succeeds.
+
+Official sources: [Castle Kit](https://kenney.nl/assets/castle-kit) and
+[UI Pack](https://kenney.nl/assets/ui-pack). The original project source ZIPs
+remain user-supplied files and are not copied wholesale into this repository.
