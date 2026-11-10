@@ -23,7 +23,6 @@ RETRO_MODEL_FILES = (
     "wall-fortified.glb", "tower.glb", "tower-base.glb", "tower-top.glb",
     "battlement.glb", "wall-fortified-gate.glb", "tree-large.glb", "barrels.glb",
 )
-AVRAMANIA_MODEL = "mdvl_nature_boulder_01.glb"
 UI_FILES = (
     "button_rectangle_depth_flat.png",
     "button_rectangle_depth_gloss.png",
@@ -58,21 +57,17 @@ def stage_runtime(
     ui_license = ui_root / "License.txt"
     retro_models = retro_root / "Models" / "GLB format"
     retro_license = retro_root / "License.txt"
-    avramania_model = avramania_root / AVRAMANIA_MODEL
     avramania_license = avramania_root / "License.txt"
 
     _require_cc0(castle_license)
     _require_cc0(ui_license)
     _require_cc0(retro_license)
-    _require_cc0(avramania_license)
     for name in MODEL_FILES:
         if not (castle_models / name).is_file():
             raise FileNotFoundError(f"Required Castle Kit model is missing: {name}")
     for name in RETRO_MODEL_FILES:
         if not (retro_models / name).is_file():
             raise FileNotFoundError(f"Required Retro Medieval Kit model is missing: {name}")
-    if not avramania_model.is_file():
-        raise FileNotFoundError(f"Required Avramania model is missing: {AVRAMANIA_MODEL}")
     for name in UI_FILES:
         if not (ui_source / name).is_file():
             raise FileNotFoundError(f"Required UI Pack texture is missing: {name}")
@@ -84,6 +79,7 @@ def stage_runtime(
     (staging / "models").mkdir(parents=True)
     (staging / "ui").mkdir(parents=True)
     (staging / "models" / "retro").mkdir(parents=True)
+    (staging / "models" / "retro" / "Textures").mkdir(parents=True)
     (staging / "licenses").mkdir(parents=True)
     try:
         for name in MODEL_FILES:
@@ -92,11 +88,14 @@ def stage_runtime(
             shutil.copy2(ui_source / name, staging / "ui" / name)
         for name in RETRO_MODEL_FILES:
             shutil.copy2(retro_models / name, staging / "models" / "retro" / name)
-        shutil.copy2(avramania_model, staging / "models" / "avramania-boulder.glb")
+        retro_textures = retro_models / "Textures"
+        if retro_textures.is_dir():
+            shutil.copytree(retro_textures, staging / "models" / "retro" / "Textures", dirs_exist_ok=True)
         shutil.copy2(castle_license, staging / "licenses" / "castle-kit-License.txt")
         shutil.copy2(ui_license, staging / "licenses" / "ui-pack-License.txt")
         shutil.copy2(retro_license, staging / "licenses" / "retro-medieval-kit-License.txt")
-        shutil.copy2(avramania_license, staging / "licenses" / "avramania-cc0-License.txt")
+        if avramania_license.is_file():
+            shutil.copy2(avramania_license, staging / "licenses" / "avramania-cc0-License.txt")
 
         metadata = {
             "name": "Kenney runtime selection for Castle Destroyer",
@@ -104,7 +103,7 @@ def stage_runtime(
             "models": list(MODEL_FILES),
             "ui_textures": list(UI_FILES),
             "retro_models": list(RETRO_MODEL_FILES),
-            "avramania_models": [AVRAMANIA_MODEL],
+            "avramania_pack": "CC0 source retained; invalid GLB excluded from runtime pending validation",
             "source_directories": [
                 "verified source archives extracted outside the Godot project",
             ],
