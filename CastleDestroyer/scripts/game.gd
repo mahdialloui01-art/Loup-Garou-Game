@@ -475,7 +475,7 @@ func _add_gobkit_ambient_insects(parent: Node3D) -> void:
 			var mesh_instance := mesh_node as MeshInstance3D
 			if mesh_instance.mesh == null:
 				continue
-			var mesh_bounds := mesh_instance.get_aabb().transformed(mesh_instance.transform)
+			var mesh_bounds: AABB = (insect.global_transform.affine_inverse() * mesh_instance.global_transform) * mesh_instance.get_aabb()
 			if has_bounds:
 				combined_bounds = combined_bounds.merge(mesh_bounds)
 			else:
