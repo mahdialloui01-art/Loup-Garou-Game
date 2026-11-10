@@ -310,7 +310,7 @@ func _collapse_unsupported_blocks(team: String, impact: Vector2, incoming_veloci
 				if candidate["team"] != team:
 					continue
 				var below: Rect2 = candidate["rect"]
-				var vertical_gap := absf(below.end.y - rect.position.y)
+				var vertical_gap := absf(below.position.y - rect.end.y)
 				var horizontal_overlap := minf(rect.end.x, below.end.x) - maxf(rect.position.x, below.position.x)
 				if vertical_gap <= 12.0 and horizontal_overlap >= minf(8.0, rect.size.x * 0.3):
 					supported = true
