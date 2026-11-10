@@ -934,7 +934,8 @@ func _animate_battlefield(delta: float) -> void:
 func _step_projectiles(delta: float) -> void:
 	for i in range(projectiles.size() - 1, -1, -1):
 		var shot: Dictionary = projectiles[i]
-		var pos: Vector2 = shot["pos"]
+		var previous_pos: Vector2 = shot["pos"]
+		var pos: Vector2 = previous_pos
 		var vel: Vector2 = shot["vel"]
 		vel.y += 0.34 * delta * 60.0
 		pos += vel * delta * 60.0
@@ -943,15 +944,35 @@ func _step_projectiles(delta: float) -> void:
 		var projectile_visual: MeshInstance3D = shot.get("visual")
 		if is_instance_valid(projectile_visual):
 			projectile_visual.position = Vector3(pos.x * 0.01, -pos.y * 0.01, 0.0)
-		var hit_index := -1
-		for j in range(blocks.size()):
-			var block: Dictionary = blocks[j]
+
+		# Sweep the projectile through the actual 3D castle colliders. Friendly
+		# fort pieces and the ground are excluded so enemy shots pass their own wall.
+		var exclude_rids: Array[RID] = []
+		if is_instance_valid(floor_body):
+			exclude_rids.append(floor_body.get_rid())
+		for block in blocks:
 			if block["team"] == shot["team"]:
-				continue
-			var rect: Rect2 = block["rect"]
-			if rect.grow(float(shot["radius"]) * 0.35).has_point(pos):
-				hit_index = j
-				break
+				var friendly_body: StaticBody3D = block.get("body")
+				if is_instance_valid(friendly_body):
+					exclude_rids.append(friendly_body.get_rid())
+		var world_3d := physics_root.get_world_3d()
+		var from_3d := Vector3(previous_pos.x * 0.01, -previous_pos.y * 0.01, 0.0)
+		var to_3d := Vector3(pos.x * 0.01, -pos.y * 0.01, 0.0)
+		var ray_query := PhysicsRayQueryParameters3D.create(from_3d, to_3d, 1, exclude_rids)
+		ray_query.collide_with_bodies = true
+		ray_query.collide_with_areas = false
+		var ray_hit := world_3d.direct_space_state.intersect_ray(ray_query)
+		var hit_index := -1
+		if not ray_hit.is_empty():
+			var hit_body: Object = ray_hit.get("collider")
+			for j in range(blocks.size()):
+				var candidate: Dictionary = blocks[j]
+				if candidate["body"] == hit_body and candidate["team"] != shot["team"]:
+					hit_index = j
+					var hit_position: Vector3 = ray_hit["position"]
+					pos = Vector2(hit_position.x * 100.0, -hit_position.y * 100.0)
+					shot["pos"] = pos
+					break
 		if hit_index >= 0:
 			_explode(pos, shot, hit_index)
 			var hit_visual: MeshInstance3D = shot.get("visual")
