@@ -165,6 +165,7 @@ func _build_3d_battlefield() -> void:
 	ground.mesh = ground_mesh
 	ground.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01, 0.0)
 	world.add_child(ground)
+	_build_terrain_detail(world)
 
 	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, -5.45, -0.7), Vector3(0.55, 0.55, 0.55), 180.0)
 	for tree_position in [
@@ -201,6 +202,90 @@ func _add_battlefield_castle_details(origin_x: float, team: String) -> void:
 		_add_battlefield_prop(world, "models/tower-square.glb", Vector3(tower_x, base_y + 0.32, 0.16), Vector3(0.34, 0.42, 0.34))
 		_add_battlefield_prop(world, "models/tower-square-roof.glb", Vector3(tower_x, base_y + 0.68, 0.16), Vector3(0.34, 0.26, 0.34))
 		_add_battlefield_prop(world, "models/flag.glb", Vector3(tower_x, base_y + 1.03, 0.16), Vector3(0.3, 0.3, 0.3))
+func _build_terrain_detail(world: Node3D) -> void:
+	var terrain := MeshInstance3D.new()
+	terrain.name = "GrassAndGravelTerrain"
+	var terrain_mesh := PlaneMesh.new()
+	terrain_mesh.size = Vector2(16.0, 5.2)
+	terrain.mesh = terrain_mesh
+	terrain.position = Vector3(6.4, -(FLOOR_Y + 8.0) * 0.01 + 0.095, 0.0)
+	var terrain_shader := Shader.new()
+	terrain_shader.code = """
+shader_type spatial;
+render_mode cull_back, diffuse_burley, specular_schlick_ggx;
+void fragment() {
+	vec2 cell = floor(UV * vec2(180.0, 58.0));
+	float grain = fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453);
+	float broad = sin(UV.x * 31.0) * cos(UV.y * 19.0);
+	vec3 grass_a = vec3(0.19, 0.31, 0.12);
+	vec3 grass_b = vec3(0.31, 0.40, 0.17);
+	vec3 gravel = vec3(0.39, 0.36, 0.28);
+	vec3 base = mix(grass_a, grass_b, clamp(0.42 + broad * 0.16 + grain * 0.16, 0.0, 1.0));
+	if (grain > 0.965) { base = mix(base, gravel, 0.72); }
+	ALBEDO = base;
+	ROUGHNESS = 1.0;
+}
+"""
+	var terrain_material := ShaderMaterial.new()
+	terrain_material.shader = terrain_shader
+	terrain.material_override = terrain_material
+	world.add_child(terrain)
+
+	var grass_mesh := BoxMesh.new()
+	grass_mesh.size = Vector3(0.014, 0.12, 0.014)
+	var grass_shader := Shader.new()
+	grass_shader.code = """
+shader_type spatial;
+render_mode cull_disabled;
+uniform vec4 blade_color : source_color = vec4(0.30, 0.48, 0.17, 1.0);
+void vertex() {
+	float height_factor = clamp((VERTEX.y + 0.06) / 0.12, 0.0, 1.0);
+	VERTEX.x += sin(TIME * 2.0 + VERTEX.x * 9.0 + UV.x * 2.0) * 0.025 * height_factor;
+}
+void fragment() {
+	ALBEDO = blade_color.rgb * (0.88 + UV.y * 0.18);
+	ROUGHNESS = 1.0;
+}
+"""
+	var grass_material := ShaderMaterial.new()
+	grass_material.shader = grass_shader
+	grass_mesh.material = grass_material
+	var grass_multi := MultiMesh.new()
+	grass_multi.transform_format = MultiMesh.TRANSFORM_3D
+	grass_multi.mesh = grass_mesh
+	grass_multi.instance_count = 620
+	for i in range(grass_multi.instance_count):
+		var x := randf_range(0.05, 12.75)
+		var z := randf_range(-2.45, 2.45)
+		var blade_height := randf_range(0.65, 1.35)
+		var blade_basis := Basis().scaled(Vector3(1.0, blade_height, 1.0)).rotated(Vector3.UP, randf_range(-PI, PI))
+		grass_multi.set_instance_transform(i, Transform3D(blade_basis, Vector3(x, terrain.position.y + 0.06 * blade_height, z)))
+	var grass_instance := MultiMeshInstance3D.new()
+	grass_instance.name = "WindAnimatedGrass"
+	grass_instance.multimesh = grass_multi
+	world.add_child(grass_instance)
+
+	var pebble_mesh := SphereMesh.new()
+	pebble_mesh.radius = 0.035
+	pebble_mesh.height = 0.025
+	var pebble_material := StandardMaterial3D.new()
+	pebble_material.albedo_color = Color("#8d8877")
+	pebble_material.roughness = 1.0
+	pebble_mesh.material = pebble_material
+	var pebbles := MultiMesh.new()
+	pebbles.transform_format = MultiMesh.TRANSFORM_3D
+	pebbles.mesh = pebble_mesh
+	pebbles.instance_count = 95
+	for i in range(pebbles.instance_count):
+		var pebble_position := Vector3(randf_range(0.0, 12.8), terrain.position.y + 0.012, randf_range(-2.3, 2.3))
+		var pebble_scale := Vector3(randf_range(0.7, 1.8), randf_range(0.55, 1.0), randf_range(0.7, 1.5))
+		pebbles.set_instance_transform(i, Transform3D(Basis().scaled(pebble_scale), pebble_position))
+	var pebble_instance := MultiMeshInstance3D.new()
+	pebble_instance.name = "ScatteredGravel"
+	pebble_instance.multimesh = pebbles
+	world.add_child(pebble_instance)
+
+
 func _add_battlefield_prop(parent: Node3D, relative_path: String, pos: Vector3, scale_value := Vector3.ONE, yaw_degrees := 0.0) -> void:
 	var resource_path := "res://assets/vendor/kenney-runtime/" + relative_path
 	var packed := load(resource_path) as PackedScene
@@ -484,33 +569,55 @@ func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) 
 	body.add_child(collision)
 
 	var mesh_instance := MeshInstance3D.new()
-	mesh_instance.name = "DestructibleStoneMesh"
-	var block_mesh := BoxMesh.new()
-	block_mesh.size = shape.size
-	var surface := StandardMaterial3D.new()
-	var stone_base := Color("#c99a62") if team == "player" else Color("#71869f")
-	var stone_variation := 0.035 if int(rect.position.x / 24.0) % 2 == 0 else -0.025
-	surface.albedo_color = stone_base.lightened(stone_variation)
-	surface.roughness = 0.86
-	surface.metallic = 0.035
-	block_mesh.material = surface
-	mesh_instance.mesh = block_mesh
+	mesh_instance.name = "MortarBed"
+	var mortar_mesh := BoxMesh.new()
+	mortar_mesh.size = shape.size * Vector3(1.0, 1.0, 0.92)
+	var mortar_material := StandardMaterial3D.new()
+	mortar_material.albedo_color = Color("#51483d")
+	mortar_material.roughness = 1.0
+	mortar_mesh.material = mortar_material
+	mesh_instance.mesh = mortar_mesh
 	body.add_child(mesh_instance)
+
+	var stone_base := Color("#c99a62") if team == "player" else Color("#71869f")
+	var stone_tiles: Array[MeshInstance3D] = []
+	for tile_y in range(2):
+		for tile_x in range(2):
+			var tile := MeshInstance3D.new()
+			tile.name = "CarvedStoneFace"
+			var tile_mesh := BoxMesh.new()
+			tile_mesh.size = Vector3(maxf(0.025, shape.size.x * 0.475), maxf(0.025, shape.size.y * 0.475), 0.105)
+			var tile_material := StandardMaterial3D.new()
+			tile_material.albedo_color = stone_base.lightened(randf_range(-0.09, 0.07))
+			tile_material.roughness = randf_range(0.82, 0.98)
+			tile_material.metallic = 0.015
+			tile_mesh.material = tile_material
+			tile.mesh = tile_mesh
+			tile.position = Vector3((float(tile_x) - 0.5) * shape.size.x * 0.5, (float(tile_y) - 0.5) * shape.size.y * 0.5, 0.025)
+			body.add_child(tile)
+			stone_tiles.append(tile)
 	physics_root.add_child(body)
-	return {"rect": rect, "team": team, "hp": hp, "max_hp": max_hp, "kind": kind, "body": body, "mesh": mesh_instance}
+	return {"rect": rect, "team": team, "hp": hp, "max_hp": max_hp, "kind": kind, "body": body, "mesh": mesh_instance, "stone_tiles": stone_tiles}
 
 func _update_block_visual(block: Dictionary) -> void:
 	var mesh_instance: MeshInstance3D = block.get("mesh")
 	if not is_instance_valid(mesh_instance):
 		return
-	var surface := StandardMaterial3D.new()
-	var base := Color("#c99a62") if block["team"] == "player" else Color("#71869f")
 	var health_ratio := float(block["hp"]) / float(maxi(1, block["max_hp"]))
-	surface.albedo_color = base.darkened(0.32) if health_ratio < 0.5 else base
-	surface.roughness = 0.92
-	var mesh := mesh_instance.mesh as BoxMesh
-	if mesh != null:
-		mesh.material = surface
+	var base := Color("#c99a62") if block["team"] == "player" else Color("#71869f")
+	var damaged := base.darkened(0.32) if health_ratio < 0.5 else base
+	var mortar_surface := StandardMaterial3D.new()
+	mortar_surface.albedo_color = Color("#332f2a") if health_ratio < 0.5 else Color("#51483d")
+	mortar_surface.roughness = 1.0
+	var mortar_mesh := mesh_instance.mesh as BoxMesh
+	if mortar_mesh != null:
+		mortar_mesh.material = mortar_surface
+	for tile in block.get("stone_tiles", []):
+		if is_instance_valid(tile):
+			var tile_surface := StandardMaterial3D.new()
+			tile_surface.albedo_color = damaged.lightened(randf_range(-0.025, 0.025))
+			tile_surface.roughness = 0.94
+			tile.mesh.material = tile_surface
 
 func _spawn_falling_block(block: Dictionary, impact: Vector2, incoming_velocity: Vector2):
 	var rect: Rect2 = block["rect"]
