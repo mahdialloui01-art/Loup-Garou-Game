@@ -71,6 +71,7 @@ var battlefield_time := 0.0
 var floor_body: StaticBody3D
 var projectiles: Array = []
 var particles: Array = []
+var fx_particles_3d: Array = []
 var score := 0
 var gold := 0
 var level := 1
@@ -905,6 +906,7 @@ func _process(delta: float) -> void:
 		enemy_cooldown = maxf(1.7, randf_range(3.2, 4.4) - float(level) * 0.07)
 	_step_projectiles(delta)
 	_step_particles(delta)
+	_step_3d_impact_particles(delta)
 	_cleanup_falling_blocks()
 	_check_winner()
 	_update_hud()
@@ -1051,6 +1053,64 @@ func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
 			"size": randf_range(4.0, 10.0),
 			"color": particle_color
 		})
+	_spawn_3d_impact_burst(pos, amount, kind)
+
+func _spawn_3d_impact_burst(pos: Vector2, amount: int, kind: String) -> void:
+	if not is_instance_valid(physics_root):
+		return
+	var fire := kind == "fire"
+	var base_color := Color("#ff7a24") if fire else Color("#c5a47b")
+	var count := mini(amount, 22)
+	for n in range(count):
+		if fx_particles_3d.size() >= 140:
+			var oldest: Dictionary = fx_particles_3d.pop_front()
+			var old_visual: MeshInstance3D = oldest.get("visual")
+			if is_instance_valid(old_visual):
+				old_visual.queue_free()
+		var visual := MeshInstance3D.new()
+		visual.name = "3DImpactParticle"
+		var mesh := SphereMesh.new()
+		var radius := randf_range(0.025, 0.065) if fire else randf_range(0.018, 0.05)
+		mesh.radius = radius
+		mesh.height = radius * 2.0
+		var surface := StandardMaterial3D.new()
+		surface.albedo_color = base_color.lightened(randf_range(0.0, 0.28))
+		surface.emission_enabled = true
+		surface.emission = base_color
+		surface.emission_energy_multiplier = 1.8 if fire else 0.45
+		surface.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mesh.material = surface
+		visual.mesh = mesh
+		visual.position = Vector3(pos.x * 0.01, -pos.y * 0.01, 0.22 + randf_range(-0.08, 0.08))
+		physics_root.add_child(visual)
+		var direction := Vector3(randf_range(-1.0, 1.0), randf_range(-0.35, 1.0), randf_range(-0.25, 0.25)).normalized()
+		var speed := randf_range(1.0, 3.2) if fire else randf_range(0.7, 2.4)
+		fx_particles_3d.append({
+			"visual": visual,
+			"velocity": direction * speed,
+			"life": randf_range(0.28, 0.72) if fire else randf_range(0.35, 0.85),
+			"max_life": 0.85
+		})
+
+func _step_3d_impact_particles(delta: float) -> void:
+	for i in range(fx_particles_3d.size() - 1, -1, -1):
+		var particle: Dictionary = fx_particles_3d[i]
+		var visual: MeshInstance3D = particle.get("visual")
+		if not is_instance_valid(visual):
+			fx_particles_3d.remove_at(i)
+			continue
+		var life := float(particle["life"]) - delta
+		var velocity: Vector3 = particle["velocity"]
+		velocity.y -= 2.8 * delta
+		particle["velocity"] = velocity
+		visual.position += velocity * delta
+		visual.scale = Vector3.ONE * clampf(life / float(particle["max_life"]), 0.0, 1.0)
+		if life <= 0.0:
+			visual.queue_free()
+			fx_particles_3d.remove_at(i)
+		else:
+			particle["life"] = life
+			fx_particles_3d[i] = particle
 
 func _step_particles(delta: float) -> void:
 	for i in range(particles.size() - 1, -1, -1):
