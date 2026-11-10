@@ -43,20 +43,10 @@ jobs:
           unzip -q /tmp/godot-templates.tpz -d /tmp/godot-templates
           cp /tmp/godot-templates/templates/* "$HOME/.local/share/godot/export_templates/4.4.1.stable/"
           printf '4.4.1.stable' > "$HOME/.local/share/godot/export_templates/4.4.1.stable/version.txt"
-      - name: Configure Godot Android SDK
-        run: |
-          mkdir -p "$HOME/.config/godot"
-          cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
-          [gd_resource type="EditorSettings" format=3]
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_HOME"
-          export/android/java_sdk_path = "$JAVA_HOME"
-          EOF
       - name: Create temporary debug signing key
         run: |
-          mkdir -p "$HOME/.android"
-          keytool -genkeypair -v -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          cp "$HOME/.android/debug.keystore" "$RUNNER_TEMP/debug.keystore"
+          mkdir -p "$HOME/.android" "$HOME/.config/godot"
+          keytool -genkeypair -v -keystore "$RUNNER_TEMP/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           cat > "$HOME/.config/godot/editor_settings-4.4.tres" <<EOF
           [gd_resource type="EditorSettings" format=3]
           [resource]
@@ -66,10 +56,24 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           EOF
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("CastleDestroyer/export_presets.cfg")
+          s = p.read_text()
+          marker = "[preset.0.options]\n"
+          assert s.count(marker) == 1, "Expected exactly one Android export options section"
+          signing = (
+              'keystore/debug="' + str(Path(__import__("os").environ["RUNNER_TEMP"]) / "debug.keystore") + '"\n'
+              'keystore/debug_user="androiddebugkey"\n'
+              'keystore/debug_password="android"\n'
+          )
+          p.write_text(s.replace(marker, marker + signing))
+          PY
           test -s "$RUNNER_TEMP/debug.keystore"
           test -x "$JAVA_HOME/bin/java"
           test -x "$ANDROID_HOME/platform-tools/adb"
           test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/zipalign"
           test -s "$HOME/.local/share/godot/export_templates/4.4.1.stable/android_debug.apk"
       - name: Import and validate game
         run: godot --headless --editor --path CastleDestroyer --quit
@@ -78,17 +82,15 @@ jobs:
       - name: Run headless game smoke test
         run: godot --headless --path CastleDestroyer --quit-after 5
       - name: Export debug APK
-        env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ runner.temp }}/debug.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
-          godot --headless --verbose --path CastleDestroyer --export-debug "Android" build/CastleDestroyer-debug.apk
+          godot --headless --verbose --path CastleDestroyer --export-debug "Android" build/CastleDestroyer-debug.apk 2>&1 | tee build/android-export.log
           test -s build/CastleDestroyer-debug.apk
       - uses: actions/upload-artifact@v4
         with:
           name: CastleDestroyer-Android-debug
-          path: build/CastleDestroyer-debug.apk
+          path: |
+            build/CastleDestroyer-debug.apk
+            build/android-export.log
           if-no-files-found: error
           retention-days: 14
