@@ -79,6 +79,8 @@ jobs:
         run: godot --headless --editor --path CastleDestroyer --quit
       - name: Strict GDScript parse check
         run: godot --headless --path CastleDestroyer --check-only --script res://scripts/game.gd
+      - name: Test structural integrity graph
+        run: godot --headless --path CastleDestroyer --script res://tests/structural_integrity_test.gd
       - name: Run headless game smoke test
         run: godot --headless --path CastleDestroyer --quit-after 5
       - name: Export debug APK
