@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
-"""Stage the Kenney models and UI textures used by the playable Godot scenes."""
+"""Stage only the Kenney models and UI textures referenced by playable scenes.
+
+The full source archives can be extracted outside the project and supplied as
+optional positional arguments. This keeps unused FBX/OBJ/source variants out of
+Godot import and the Android APK.
+"""
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import sys
@@ -30,10 +36,14 @@ def _require_cc0(license_path: Path) -> str:
     return content
 
 
-def stage_runtime(project_root: Path = PROJECT_ROOT) -> Path:
-    vendor = project_root / "assets" / "vendor"
-    castle_root = vendor / "kenney-castle-kit"
-    ui_root = vendor / "kenney-ui-pack"
+def stage_runtime(
+    project_root: Path = PROJECT_ROOT,
+    castle_source_root: Path | None = None,
+    ui_source_root: Path | None = None,
+) -> Path:
+    vendor = Path(project_root) / "assets" / "vendor"
+    castle_root = Path(castle_source_root) if castle_source_root else vendor / "kenney-castle-kit"
+    ui_root = Path(ui_source_root) if ui_source_root else vendor / "kenney-ui-pack"
     castle_models = castle_root / "Models" / "GLB format"
     ui_source = ui_root / "PNG" / "Blue" / "Default"
     castle_license = castle_root / "License.txt"
@@ -69,10 +79,9 @@ def stage_runtime(project_root: Path = PROJECT_ROOT) -> Path:
             "models": list(MODEL_FILES),
             "ui_textures": list(UI_FILES),
             "source_directories": [
-                "assets/vendor/kenney-castle-kit/",
-                "assets/vendor/kenney-ui-pack/",
+                "verified source archives extracted outside the Godot project",
             ],
-            "note": "Full source packs are retained beside this optimized runtime selection.",
+            "note": "Only runtime-required GLB and PNG assets plus both original CC0 license texts are staged.",
         }
         for pack, root in (("castle", castle_root), ("ui", ui_root)):
             source_metadata = root / "SOURCE_METADATA.json"
@@ -93,8 +102,12 @@ def stage_runtime(project_root: Path = PROJECT_ROOT) -> Path:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("castle_source_root", nargs="?", type=Path)
+    parser.add_argument("ui_source_root", nargs="?", type=Path)
+    args = parser.parse_args()
     try:
-        result = stage_runtime()
+        result = stage_runtime(PROJECT_ROOT, args.castle_source_root, args.ui_source_root)
     except Exception as exc:
         print(f"KENNEY RUNTIME STAGING FAILED: {exc}", file=sys.stderr)
         raise SystemExit(1)
