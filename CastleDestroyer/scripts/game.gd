@@ -473,7 +473,6 @@ func _build_ui() -> void:
 	camera_test_button.pressed.connect(_open_camera_test)
 	controls.add_child(camera_test_button)
 
-""")
 func _set_game_hud_visible(is_visible: bool) -> void:
 	for item in game_hud:
 		if is_instance_valid(item):
