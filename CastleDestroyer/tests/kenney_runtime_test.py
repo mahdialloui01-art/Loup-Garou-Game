@@ -46,9 +46,10 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             root = Path(tmp)
             self._make_sources(root)
             destination = module.stage_runtime(root)
-            self.assertEqual(len(list((destination / "models").glob("*.glb"))), 11)
+            self.assertEqual(len(list((destination / "models").glob("*.glb"))), 10)
             self.assertEqual(len(list((destination / "models" / "retro").glob("*.glb"))), len(module.RETRO_MODEL_FILES))
             self.assertEqual(len(list((destination / "ui").glob("*.png"))), 3)
+            self.assertTrue((destination / "models" / "retro" / "Textures").is_dir())
             self.assertTrue((destination / "licenses" / "castle-kit-License.txt").is_file())
             self.assertTrue((destination / "licenses" / "ui-pack-License.txt").is_file())
             self.assertTrue((destination / "licenses" / "retro-medieval-kit-License.txt").is_file())
@@ -75,7 +76,7 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             self.assertTrue((destination / "ui" / "button_rectangle_depth_flat.png").is_file())
             self.assertFalse((root / "assets/vendor/kenney-castle-kit").exists())
             self.assertFalse((root / "assets/vendor/kenney-ui-pack").exists())
-            self.assertEqual(len(list((destination / "models").rglob("*.glb"))), 19)
+            self.assertEqual(len(list((destination / "models").rglob("*.glb"))), 18)
 
     def test_rejects_missing_model(self):
         with tempfile.TemporaryDirectory() as tmp:
