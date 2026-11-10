@@ -96,8 +96,6 @@ jobs:
         run: python3 -m unittest discover -s CastleDestroyer/tests -p 'kenney_runtime_test.py' -v
       - name: Test asset importer safety
         run: python3 -m unittest discover -s CastleDestroyer/tests -p 'asset_importer_test.py' -v
-      - name: Decode and import selected Kenney runtime assets
-        run: python3 CastleDestroyer/tools/import_kenney_runtime_bundle.py CastleDestroyer/vendor_sources/kenney-runtime-selected.zip.base64
       - name: Import and validate game
         run: godot --headless --editor --path CastleDestroyer --quit
       - name: Strict GDScript parse check
