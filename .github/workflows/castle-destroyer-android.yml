@@ -97,7 +97,7 @@ jobs:
           python3 CastleDestroyer/tools/stage_kenney_runtime.py "$RUNNER_TEMP/kenney/source/kenney-castle-kit" "$RUNNER_TEMP/kenney/source/kenney-ui-pack" "$RUNNER_TEMP/kenney/source/kenney-retro-medieval-kit"
           test -s CastleDestroyer/assets/vendor/kenney-runtime/models/wall.glb
           test -s CastleDestroyer/assets/vendor/kenney-runtime/models/retro/wall-fortified.glb
-          test -s CastleDestroyer/assets/vendor/kenney-runtime/models/avramania-boulder.glb
+          test -s CastleDestroyer/assets/vendor/kenney-runtime/models/retro/Textures/cobblestone.png
           test -s CastleDestroyer/assets/vendor/kenney-runtime/ui/button_rectangle_depth_flat.png
           test ! -d CastleDestroyer/assets/vendor/kenney-castle-kit
           test ! -d CastleDestroyer/assets/vendor/kenney-ui-pack
