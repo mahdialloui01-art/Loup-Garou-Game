@@ -16,7 +16,7 @@
 - [x] Structural support graph and ground-connected stability evaluation
 - [x] Jolt Physics selected for the 3D physics server (Godot 4.4 built-in)
 - [x] Pre-fractured mesh-swap editor plugin foundation
-- [ ] Migrate battlefield debris and fort fragments to live 3D Jolt bodies
+- [x] Migrate fort collision and fractured debris to live 3D Jolt bodies
 - [x] Structural stability graph and cascading collapse evaluation
 - [ ] Explosive impulse, debris pooling and impact effects
 - [ ] Troop movement, pathfinding, melee/ranged combat
