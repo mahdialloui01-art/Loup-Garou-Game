@@ -62,7 +62,7 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             root.mkdir()
             castle, ui_pack = self._make_sources(Path(tmp), inside_project=False)
             retro = Path(tmp) / "downloaded_sources" / "kenney-retro-medieval-kit"
-            (retro / "Models" / "GLB format").mkdir(parents=True)
+            (retro / "Models" / "GLB format").mkdir(parents=True, exist_ok=True)
             (retro / "License.txt").write_text("CC0", encoding="utf-8")
             for name in module.RETRO_MODEL_FILES:
                 (retro / "Models" / "GLB format" / name).write_bytes(b"retro-glb")
@@ -75,7 +75,7 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             self.assertTrue((destination / "ui" / "button_rectangle_depth_flat.png").is_file())
             self.assertFalse((root / "assets/vendor/kenney-castle-kit").exists())
             self.assertFalse((root / "assets/vendor/kenney-ui-pack").exists())
-            self.assertEqual(len(list((root / "assets/vendor").rglob("*.glb"))), 19)
+            self.assertEqual(len(list((destination / "models").rglob("*.glb"))), 19)
 
     def test_rejects_missing_model(self):
         with tempfile.TemporaryDirectory() as tmp:
