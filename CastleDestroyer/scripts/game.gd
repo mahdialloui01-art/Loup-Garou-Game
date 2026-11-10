@@ -135,9 +135,16 @@ func _build_3d_battlefield() -> void:
 	battlefield_viewport = SubViewport.new()
 	battlefield_viewport.name = "Battlefield3DViewport"
 	var initial_size := get_viewport_rect().size
-	# Render the 3D battlefield at up to Full HD while keeping the touch/UI
-	# coordinate space unchanged. Cap the target to avoid excessive mobile VRAM.
-	var render_scale := minf(2.0, minf(2560.0 / maxf(initial_size.x, 1.0), 1440.0 / maxf(initial_size.y, 1.0)))
+	# Ultra 4K render target: keep the UI/touch coordinate space native while
+	# rendering the 3D battlefield at up to 3840x2160 (portrait: 2160x3840).
+	# The scale is capped to prevent pathological allocations on unusual displays.
+	var target_size := Vector2(3840.0, 2160.0)
+	if initial_size.y > initial_size.x:
+		target_size = Vector2(2160.0, 3840.0)
+	var render_scale := minf(4.0, minf(
+		target_size.x / maxf(initial_size.x, 1.0),
+		target_size.y / maxf(initial_size.y, 1.0)
+	))
 	battlefield_viewport.size = Vector2i(
 		maxi(roundi(initial_size.x * render_scale), 1),
 		maxi(roundi(initial_size.y * render_scale), 1)
