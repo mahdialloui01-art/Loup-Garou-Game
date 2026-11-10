@@ -160,8 +160,18 @@ func _build_hud() -> void:
 	back.custom_minimum_size = Vector2(170.0, 42.0)
 	back.pressed.connect(_return_to_game)
 	row.add_child(back)
+	var zoom_out := Button.new()
+	zoom_out.text = "−"
+	zoom_out.custom_minimum_size = Vector2(48.0, 42.0)
+	zoom_out.pressed.connect(func(): _zoom(1.5))
+	row.add_child(zoom_out)
+	var zoom_in := Button.new()
+	zoom_in.text = "+"
+	zoom_in.custom_minimum_size = Vector2(48.0, 42.0)
+	zoom_in.pressed.connect(func(): _zoom(-1.5))
+	row.add_child(zoom_in)
 	hint_label = Label.new()
-	hint_label.text = "CAMERA A  |  DRAG TO ORBIT  |  PINCH / WHEEL TO ZOOM"
+	hint_label.text = "CAMERA A  |  DRAG TO ORBIT  |  USE +/- TO ZOOM"
 	hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(hint_label)
@@ -196,6 +206,10 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and dragging:
 		var motion := event as InputEventMouseMotion
 		_orbit(motion.relative)
+
+func _zoom(amount: float) -> void:
+	distance = clampf(distance + amount, MIN_DISTANCE, MAX_DISTANCE)
+	_update_camera()
 
 func _orbit(delta: Vector2) -> void:
 	yaw -= delta.x * 0.006
