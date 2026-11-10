@@ -517,6 +517,7 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 	var splash := float(shot["splash"])
 	var damage := int(shot["power"])
 	var team: String = shot["team"]
+	_apply_blast_to_debris(pos, maxf(splash, 42.0), damage, shot["vel"])
 	var remove_list: Array[int] = []
 	for i in range(blocks.size()):
 		var block: Dictionary = blocks[i]
@@ -540,6 +541,22 @@ func _explode(pos: Vector2, shot: Dictionary, direct_index: int) -> void:
 	for i in range(remove_list.size() - 1, -1, -1):
 		blocks.remove_at(remove_list[i])
 	_collapse_unsupported_blocks("player" if team == "enemy" else "enemy", pos, shot["vel"])
+
+func _apply_blast_to_debris(center: Vector2, radius: float, damage: int, incoming_velocity: Vector2) -> void:
+	var base_force := incoming_velocity.length() * 1.8 + float(damage) * 12.0
+	for body in falling_blocks:
+		if not is_instance_valid(body) or body.freeze:
+			continue
+		var offset := body.global_position - center
+		var distance := offset.length()
+		if distance > radius:
+			continue
+		var direction := offset.normalized()
+		if direction.length_squared() < 0.01:
+			direction = Vector2.UP
+		var falloff := 1.0 - distance / radius
+		body.apply_central_impulse(direction * base_force * falloff)
+		body.apply_torque_impulse(randf_range(-3.0, 3.0) * falloff)
 
 func _spawn_burst(pos: Vector2, amount: int, kind: String) -> void:
 	var particle_color := Color("#f97316") if kind == "fire" else Color("#a88b68")
