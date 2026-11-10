@@ -137,7 +137,7 @@ func _build_3d_battlefield() -> void:
 	var initial_size := get_viewport_rect().size
 	# Render the 3D battlefield at up to Full HD while keeping the touch/UI
 	# coordinate space unchanged. Cap the target to avoid excessive mobile VRAM.
-	var render_scale := minf(1.5, minf(1920.0 / maxf(initial_size.x, 1.0), 1080.0 / maxf(initial_size.y, 1.0)))
+	var render_scale := minf(2.0, minf(2560.0 / maxf(initial_size.x, 1.0), 1440.0 / maxf(initial_size.y, 1.0)))
 	battlefield_viewport.size = Vector2i(
 		maxi(roundi(initial_size.x * render_scale), 1),
 		maxi(roundi(initial_size.y * render_scale), 1)
@@ -166,7 +166,15 @@ func _build_3d_battlefield() -> void:
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#c4d4df")
-	environment.ambient_light_energy = 1.05
+	environment.ambient_light_energy = 1.25
+	environment.glow_enabled = true
+	environment.glow_intensity = 0.65
+	environment.glow_strength = 0.9
+	environment.glow_bloom = 0.08
+	environment.adjustment_enabled = true
+	environment.adjustment_brightness = 1.02
+	environment.adjustment_contrast = 1.12
+	environment.adjustment_saturation = 1.18
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.fog_enabled = true
@@ -179,7 +187,7 @@ func _build_3d_battlefield() -> void:
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-48.0, -32.0, 0.0)
-	sun.light_energy = 1.35
+	sun.light_energy = 1.5
 	sun.light_color = Color("#fff0d5")
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
@@ -296,7 +304,7 @@ void fragment() {
 	var grass_multi := MultiMesh.new()
 	grass_multi.transform_format = MultiMesh.TRANSFORM_3D
 	grass_multi.mesh = grass_mesh
-	grass_multi.instance_count = 620
+	grass_multi.instance_count = 1600
 	for i in range(grass_multi.instance_count):
 		var x := randf_range(0.05, 12.75)
 		var z := randf_range(-2.45, 2.45)
@@ -318,7 +326,7 @@ void fragment() {
 	var pebbles := MultiMesh.new()
 	pebbles.transform_format = MultiMesh.TRANSFORM_3D
 	pebbles.mesh = pebble_mesh
-	pebbles.instance_count = 95
+	pebbles.instance_count = 240
 	for i in range(pebbles.instance_count):
 		var pebble_position := Vector3(randf_range(0.0, 12.8), terrain.position.y + 0.012, randf_range(-2.3, 2.3))
 		var pebble_scale := Vector3(randf_range(0.7, 1.8), randf_range(0.55, 1.0), randf_range(0.7, 1.5))
