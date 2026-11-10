@@ -15,16 +15,26 @@ class KenneyRuntimeStageTests(unittest.TestCase):
         vendor = root / "assets" / "vendor" if inside_project else root / "downloaded_sources"
         castle = vendor / "kenney-castle-kit"
         ui_pack = vendor / "kenney-ui-pack"
+        retro = vendor / "kenney-retro-medieval-kit"
+        avramania = vendor / "avramania-free"
         models = castle / "Models" / "GLB format"
         ui = ui_pack / "PNG" / "Blue" / "Default"
+        retro_models = retro / "Models" / "GLB format"
         models.mkdir(parents=True)
         ui.mkdir(parents=True)
+        retro_models.mkdir(parents=True)
+        avramania.mkdir(parents=True)
         (castle / "License.txt").write_text(
             "License: Creative Commons Zero (CC0)", encoding="utf-8"
         )
         (ui_pack / "License.txt").write_text(
             "License: Creative Commons Zero (CC0)", encoding="utf-8"
         )
+        (retro / "License.txt").write_text("License: Creative Commons Zero (CC0)", encoding="utf-8")
+        (avramania / "License.txt").write_text("License: Creative Commons Zero (CC0)", encoding="utf-8")
+        (avramania / "mdvl_nature_boulder_01.glb").write_bytes(b"avramania-glb")
+        for name in module.RETRO_MODEL_FILES:
+            (retro_models / name).write_bytes(b"retro-glb")
         for name in module.MODEL_FILES:
             (models / name).write_bytes(b"glb-test")
         for name in module.UI_FILES:
@@ -36,10 +46,13 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             root = Path(tmp)
             self._make_sources(root)
             destination = module.stage_runtime(root)
-            self.assertEqual(len(list((destination / "models").glob("*.glb"))), 10)
+            self.assertEqual(len(list((destination / "models").glob("*.glb"))), 11)
+            self.assertEqual(len(list((destination / "models" / "retro").glob("*.glb"))), len(module.RETRO_MODEL_FILES))
             self.assertEqual(len(list((destination / "ui").glob("*.png"))), 3)
             self.assertTrue((destination / "licenses" / "castle-kit-License.txt").is_file())
             self.assertTrue((destination / "licenses" / "ui-pack-License.txt").is_file())
+            self.assertTrue((destination / "licenses" / "retro-medieval-kit-License.txt").is_file())
+            self.assertTrue((destination / "licenses" / "avramania-cc0-License.txt").is_file())
             metadata = json.loads((destination / "SOURCE_METADATA.json").read_text())
             self.assertEqual(metadata["license"], "CC0 1.0")
 
@@ -48,7 +61,12 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             root = Path(tmp) / "godot-project"
             root.mkdir()
             castle, ui_pack = self._make_sources(Path(tmp), inside_project=False)
-            destination = module.stage_runtime(root, castle, ui_pack)
+            retro = Path(tmp) / "downloaded_sources" / "kenney-retro-medieval-kit"
+            (retro / "Models" / "GLB format").mkdir(parents=True)
+            (retro / "License.txt").write_text("CC0", encoding="utf-8")
+            for name in module.RETRO_MODEL_FILES:
+                (retro / "Models" / "GLB format" / name).write_bytes(b"retro-glb")
+            destination = module.stage_runtime(root, castle, ui_pack, retro)
             self.assertTrue((destination / "models" / "wall.glb").is_file())
             self.assertTrue((destination / "ui" / "button_rectangle_depth_flat.png").is_file())
             self.assertFalse((root / "assets/vendor/kenney-castle-kit").exists())

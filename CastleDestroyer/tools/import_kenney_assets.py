@@ -24,6 +24,8 @@ DESTINATIONS = {
                "https://kenney-assets.itch.io/castle-kit"),
     "ui": ("kenney-ui-pack", "Kenney UI Pack",
            "https://kenney.nl/assets/ui-pack"),
+    "retro": ("kenney-retro-medieval-kit", "Kenney Retro Medieval Kit",
+              "https://opengameart.org/content/retro-medieval-kit"),
 }
 MAX_TOTAL_BYTES = 100 * 1024 * 1024
 MAX_FILES = 5000

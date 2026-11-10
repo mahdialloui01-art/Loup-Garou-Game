@@ -19,6 +19,11 @@ MODEL_FILES = (
     "tower-square.glb", "tower-square-roof.glb", "flag.glb",
     "gate.glb", "siege-catapult.glb", "tree-large.glb", "rocks-large.glb",
 )
+RETRO_MODEL_FILES = (
+    "wall-fortified.glb", "tower.glb", "tower-base.glb", "tower-top.glb",
+    "battlement.glb", "wall-fortified-gate.glb", "tree-large.glb", "barrels.glb",
+)
+AVRAMANIA_MODEL = "mdvl_nature_boulder_01.glb"
 UI_FILES = (
     "button_rectangle_depth_flat.png",
     "button_rectangle_depth_gloss.png",
@@ -40,20 +45,34 @@ def stage_runtime(
     project_root: Path = PROJECT_ROOT,
     castle_source_root: Path | None = None,
     ui_source_root: Path | None = None,
+    retro_source_root: Path | None = None,
 ) -> Path:
     vendor = Path(project_root) / "assets" / "vendor"
     castle_root = Path(castle_source_root) if castle_source_root else vendor / "kenney-castle-kit"
     ui_root = Path(ui_source_root) if ui_source_root else vendor / "kenney-ui-pack"
+    retro_root = Path(retro_source_root) if retro_source_root else vendor / "kenney-retro-medieval-kit"
+    avramania_root = vendor / "avramania-free"
     castle_models = castle_root / "Models" / "GLB format"
     ui_source = ui_root / "PNG" / "Blue" / "Default"
     castle_license = castle_root / "License.txt"
     ui_license = ui_root / "License.txt"
+    retro_models = retro_root / "Models" / "GLB format"
+    retro_license = retro_root / "License.txt"
+    avramania_model = avramania_root / AVRAMANIA_MODEL
+    avramania_license = avramania_root / "License.txt"
 
     _require_cc0(castle_license)
     _require_cc0(ui_license)
+    _require_cc0(retro_license)
+    _require_cc0(avramania_license)
     for name in MODEL_FILES:
         if not (castle_models / name).is_file():
             raise FileNotFoundError(f"Required Castle Kit model is missing: {name}")
+    for name in RETRO_MODEL_FILES:
+        if not (retro_models / name).is_file():
+            raise FileNotFoundError(f"Required Retro Medieval Kit model is missing: {name}")
+    if not avramania_model.is_file():
+        raise FileNotFoundError(f"Required Avramania model is missing: {AVRAMANIA_MODEL}")
     for name in UI_FILES:
         if not (ui_source / name).is_file():
             raise FileNotFoundError(f"Required UI Pack texture is missing: {name}")
@@ -64,26 +83,34 @@ def stage_runtime(
         shutil.rmtree(staging)
     (staging / "models").mkdir(parents=True)
     (staging / "ui").mkdir(parents=True)
+    (staging / "models" / "retro").mkdir(parents=True)
     (staging / "licenses").mkdir(parents=True)
     try:
         for name in MODEL_FILES:
             shutil.copy2(castle_models / name, staging / "models" / name)
         for name in UI_FILES:
             shutil.copy2(ui_source / name, staging / "ui" / name)
+        for name in RETRO_MODEL_FILES:
+            shutil.copy2(retro_models / name, staging / "models" / "retro" / name)
+        shutil.copy2(avramania_model, staging / "models" / "avramania-boulder.glb")
         shutil.copy2(castle_license, staging / "licenses" / "castle-kit-License.txt")
         shutil.copy2(ui_license, staging / "licenses" / "ui-pack-License.txt")
+        shutil.copy2(retro_license, staging / "licenses" / "retro-medieval-kit-License.txt")
+        shutil.copy2(avramania_license, staging / "licenses" / "avramania-cc0-License.txt")
 
         metadata = {
             "name": "Kenney runtime selection for Castle Destroyer",
             "license": "CC0 1.0",
             "models": list(MODEL_FILES),
             "ui_textures": list(UI_FILES),
+            "retro_models": list(RETRO_MODEL_FILES),
+            "avramania_models": [AVRAMANIA_MODEL],
             "source_directories": [
                 "verified source archives extracted outside the Godot project",
             ],
             "note": "Only runtime-required GLB and PNG assets plus both original CC0 license texts are staged.",
         }
-        for pack, root in (("castle", castle_root), ("ui", ui_root)):
+        for pack, root in (("castle", castle_root), ("ui", ui_root), ("retro", retro_root)):
             source_metadata = root / "SOURCE_METADATA.json"
             if source_metadata.is_file():
                 metadata[pack + "_source"] = json.loads(
@@ -105,9 +132,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("castle_source_root", nargs="?", type=Path)
     parser.add_argument("ui_source_root", nargs="?", type=Path)
+    parser.add_argument("retro_source_root", nargs="?", type=Path)
     args = parser.parse_args()
     try:
-        result = stage_runtime(PROJECT_ROOT, args.castle_source_root, args.ui_source_root)
+        result = stage_runtime(PROJECT_ROOT, args.castle_source_root, args.ui_source_root, args.retro_source_root)
     except Exception as exc:
         print(f"KENNEY RUNTIME STAGING FAILED: {exc}", file=sys.stderr)
         raise SystemExit(1)

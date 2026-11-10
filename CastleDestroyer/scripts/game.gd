@@ -168,6 +168,8 @@ func _build_3d_battlefield() -> void:
 	_build_terrain_detail(world)
 
 	_add_battlefield_prop(world, "models/siege-catapult.glb", Vector3(6.4, -5.45, -0.7), Vector3(0.55, 0.55, 0.55), 180.0)
+	_add_battlefield_prop(world, "models/avramania-boulder.glb", Vector3(0.45, -5.46, -1.2), Vector3(0.75, 0.75, 0.75))
+	_add_battlefield_prop(world, "models/avramania-boulder.glb", Vector3(12.25, -5.46, -1.1), Vector3(0.9, 0.9, 0.9))
 	for tree_position in [
 		Vector3(-0.25, -5.45, -0.9), Vector3(12.9, -5.45, -0.9)
 	]:
@@ -202,6 +204,11 @@ func _add_battlefield_castle_details(origin_x: float, team: String) -> void:
 		_add_battlefield_prop(world, "models/tower-square.glb", Vector3(tower_x, base_y + 0.32, 0.16), Vector3(0.34, 0.42, 0.34))
 		_add_battlefield_prop(world, "models/tower-square-roof.glb", Vector3(tower_x, base_y + 0.68, 0.16), Vector3(0.34, 0.26, 0.34))
 		_add_battlefield_prop(world, "models/flag.glb", Vector3(tower_x, base_y + 1.03, 0.16), Vector3(0.3, 0.3, 0.3))
+	var wall_mid := (left_x + right_x) * 0.5
+	for wall_index in range(3):
+		var wall_x := wall_mid + (float(wall_index) - 1.0) * 0.52
+		_add_battlefield_prop(world, "models/retro/wall-fortified.glb", Vector3(wall_x, base_y + 0.02, 0.13), Vector3(0.54, 0.54, 0.54))
+	_add_battlefield_prop(world, "models/retro/battlement.glb", Vector3(wall_mid, base_y + 0.55, 0.13), Vector3(0.52, 0.52, 0.52))
 func _build_terrain_detail(world: Node3D) -> void:
 	var terrain := MeshInstance3D.new()
 	terrain.name = "GrassAndGravelTerrain"
