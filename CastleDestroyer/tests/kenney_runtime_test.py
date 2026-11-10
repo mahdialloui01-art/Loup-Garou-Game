@@ -21,6 +21,8 @@ class KenneyRuntimeStageTests(unittest.TestCase):
         ui = ui_pack / "PNG" / "Blue" / "Default"
         retro_models = retro / "Models" / "GLB format"
         models.mkdir(parents=True)
+        (models / "Textures").mkdir(parents=True)
+        (models / "Textures" / "colormap.png").write_bytes(b"castle-colormap")
         ui.mkdir(parents=True)
         retro_models.mkdir(parents=True)
         avramania.mkdir(parents=True)
@@ -47,6 +49,7 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             self._make_sources(root)
             destination = module.stage_runtime(root)
             self.assertEqual(len(list((destination / "models").glob("*.glb"))), 10)
+            self.assertTrue((destination / "models" / "Textures" / "colormap.png").is_file())
             self.assertEqual(len(list((destination / "models" / "retro").glob("*.glb"))), len(module.RETRO_MODEL_FILES))
             self.assertEqual(len(list((destination / "ui").glob("*.png"))), 3)
             self.assertTrue((destination / "models" / "retro" / "Textures").is_dir())
@@ -73,6 +76,7 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             (avramania / "mdvl_nature_boulder_01.glb").write_bytes(b"avramania-glb")
             destination = module.stage_runtime(root, castle, ui_pack, retro)
             self.assertTrue((destination / "models" / "wall.glb").is_file())
+            self.assertTrue((destination / "models" / "Textures" / "colormap.png").is_file())
             self.assertTrue((destination / "ui" / "button_rectangle_depth_flat.png").is_file())
             self.assertFalse((root / "assets/vendor/kenney-castle-kit").exists())
             self.assertFalse((root / "assets/vendor/kenney-ui-pack").exists())
