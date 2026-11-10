@@ -1,27 +1,37 @@
-# Kenney asset staging
+# Kenney asset packs and runtime staging
 
-The project is prepared to import the official CC0 archives without committing
-unverified third-party mirrors.
+The project uses two owner-supplied Kenney CC0 packs:
 
-1. Download the official [Castle Kit](https://kenney-assets.itch.io/castle-kit)
-   ZIP (free / name-your-price) and the [UI Pack](https://kenney.nl/assets/ui-pack).
-2. Keep the original ZIPs outside the repository.
-3. From the repository root, run:
+- [Castle Kit](https://kenney-assets.itch.io/castle-kit)
+- [UI Pack](https://kenney.nl/assets/ui-pack)
 
-   ```sh
-   python3 CastleDestroyer/tools/import_kenney_assets.py castle /path/to/kenney_castle-kit.zip
-   python3 CastleDestroyer/tools/import_kenney_assets.py ui /path/to/kenney_ui-pack.zip
-   ```
+## Local import
 
-4. Open `CastleDestroyer/project.godot` in Godot 4.4.1 so Godot imports the
-   glTF/OBJ models and PNG textures.
-5. Keep `SOURCE_METADATA.json` and the original pack license beside each
-   imported pack. Do not remove or rewrite the upstream license.
+From the repository root, import the original ZIP archives:
 
-The importer rejects archives without an explicit CC0 license, path traversal,
-ZIP symlinks, excessive file counts, and oversized expanded archives. It stages
-into a temporary directory and only replaces the destination after extraction
-and license validation succeed.
+```sh
+python3 CastleDestroyer/tools/import_kenney_assets.py castle /path/to/kenney_castle-kit.zip
+python3 CastleDestroyer/tools/import_kenney_assets.py ui /path/to/kenney_ui-pack.zip
+python3 CastleDestroyer/tools/stage_kenney_runtime.py
+```
 
-**Status:** importer tooling is committed; source ZIP binaries have not yet
-been obtained or imported, and no game scene is claiming to use these assets yet.
+The importer retains the original pack contents and license text beneath
+`CastleDestroyer/assets/vendor/kenney-castle-kit/` and
+`CastleDestroyer/assets/vendor/kenney-ui-pack/`. Runtime staging copies only
+the assets referenced by the Godot scenes into
+`CastleDestroyer/assets/vendor/kenney-runtime/`:
+
+- 10 GLB models for the Camera A fortress, gate, siege prop and environment
+- 3 UI button-state textures for the battle HUD and Camera A controls
+- Both original per-pack CC0 license files and source metadata
+
+The Android CI workflow downloads the same pinned archives, verifies their
+SHA-256 checksums, then runs these import and staging scripts before Godot
+imports the project and exports the APK.
+
+## Safety and licensing
+
+Both archives must contain their own explicit CC0 `License.txt`. The importer
+rejects unsafe ZIP paths, symlinks, oversized archives, and archives without a
+CC0 license. Runtime staging verifies every required model and UI texture
+before replacing its output folder. Keep both license notices with the assets.
