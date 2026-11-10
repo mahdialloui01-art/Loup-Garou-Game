@@ -520,6 +520,26 @@ func _draw() -> void:
 		var direction := (aim_point - PLAYER_CANNON).normalized()
 		var preview := PLAYER_CANNON + direction * 95.0
 		draw_line(PLAYER_CANNON, preview, Color(1.0, 1.0, 1.0, 0.6), 3.0)
+		_draw_trajectory_preview()
+
+func _draw_trajectory_preview() -> void:
+	var weapon: Dictionary = WEAPONS[weapon_index]
+	var direction := (aim_point - PLAYER_CANNON).normalized()
+	if direction.x < 0.2:
+		direction.x = 0.2
+	direction.y = clampf(direction.y, -1.0, -0.08)
+	direction = direction.normalized()
+	var speed := float(weapon["speed"]) * (1.0 + float(cannon_level - 1) * 0.045)
+	var velocity := direction * speed
+	var position := PLAYER_CANNON + Vector2(15.0, -12.0)
+	for frame in range(1, 61):
+		velocity.y += 0.34
+		position += velocity
+		if frame % 3 == 0:
+			var alpha := 1.0 - float(frame) / 75.0
+			draw_circle(position, 3.5, Color(1.0, 0.92, 0.55, alpha))
+		if position.y >= FLOOR_Y or position.x >= 1320.0 or position.x < 0.0:
+			break
 
 func _draw_castle_details() -> void:
 	# Flags and crenellations give the two forts distinct silhouettes.
