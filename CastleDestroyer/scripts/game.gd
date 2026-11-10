@@ -110,8 +110,7 @@ var game_hud: Array[Control] = []
 var main_menu: Control
 var settings_panel: PanelContainer
 var game_started := false
-var music_enabled := true
-var sound_enabled := true
+var camera_sensitivity := 1.0
 
 func _ready() -> void:
 	randomize()
@@ -439,14 +438,15 @@ func _build_ui() -> void:
 	add_child(status_label)
 	game_hud.append(status_label)
 
-	var controls := HBoxContainer.new()
-	controls.alignment = BoxContainer.ALIGNMENT_CENTER
-	controls.add_theme_constant_override("separation", 12)
+	var controls := GridContainer.new()
+	controls.columns = 4
+	controls.add_theme_constant_override("h_separation", 8)
+	controls.add_theme_constant_override("v_separation", 6)
 	controls.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	controls.offset_left = 12
-	controls.offset_top = -76
+	controls.offset_top = -118
 	controls.offset_right = -12
-	controls.offset_bottom = -10
+	controls.offset_bottom = -8
 	add_child(controls)
 	game_hud.append(controls)
 
@@ -469,9 +469,13 @@ func _build_ui() -> void:
 	next_button.pressed.connect(_next_level)
 	controls.add_child(next_button)
 	camera_test_button = _make_button("CAMERA 3D • OVERVIEW", Color("#475569"))
-	camera_test_button.custom_minimum_size = Vector2(140.0, 54.0)
+	camera_test_button.custom_minimum_size = Vector2(130.0, 48.0)
 	camera_test_button.pressed.connect(_open_camera_test)
 	controls.add_child(camera_test_button)
+	for control_button in controls.get_children():
+		if control_button is Button:
+			control_button.custom_minimum_size = Vector2(130.0, 48.0)
+			control_button.add_theme_font_size_override("font_size", 12)
 
 func _set_game_hud_visible(is_visible: bool) -> void:
 	for item in game_hud:
@@ -566,19 +570,18 @@ func _build_main_menu() -> void:
 	settings_title.add_theme_color_override("font_color", Color("#f4d49b"))
 	settings_content.add_child(settings_title)
 
-	var music_button := _make_button("MUSIC: ON", Color("#475569"))
-	music_button.pressed.connect(func():
-		music_enabled = not music_enabled
-		music_button.text = "MUSIC: " + ("ON" if music_enabled else "OFF")
-	)
-	settings_content.add_child(music_button)
-
-	var sound_button := _make_button("SOUND: ON", Color("#475569"))
-	sound_button.pressed.connect(func():
-		sound_enabled = not sound_enabled
-		sound_button.text = "SOUND: " + ("ON" if sound_enabled else "OFF")
-	)
-	settings_content.add_child(sound_button)
+	var sensitivity_label := Label.new()
+	sensitivity_label.text = "TOUCH CAMERA SENSITIVITY"
+	sensitivity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sensitivity_label.add_theme_color_override("font_color", Color("#e2e8f0"))
+	settings_content.add_child(sensitivity_label)
+	var sensitivity_slider := HSlider.new()
+	sensitivity_slider.min_value = 0.5
+	sensitivity_slider.max_value = 2.0
+	sensitivity_slider.step = 0.1
+	sensitivity_slider.value = camera_sensitivity
+	sensitivity_slider.value_changed.connect(func(value: float): camera_sensitivity = value)
+	settings_content.add_child(sensitivity_slider)
 
 	var back_button := _make_button("BACK", Color("#8b5e34"))
 	back_button.pressed.connect(func(): settings_panel.visible = false)
@@ -1048,7 +1051,7 @@ func _input(event: InputEvent) -> void:
 					camera_zoom = clampf(camera_zoom * previous_pinch_distance / distance, 0.62, 1.55)
 				previous_pinch_distance = distance
 				var pan_scale := main_camera.size * camera_zoom / 720.0
-				camera_pan += Vector2(-1.0, 1.0) * (new_centroid - old_centroid) * pan_scale
+				camera_pan += Vector2(-1.0, 1.0) * (new_centroid - old_centroid) * pan_scale * camera_sensitivity
 				queue_redraw()
 			elif aiming:
 				aim_point = _screen_to_battlefield(drag.position)
