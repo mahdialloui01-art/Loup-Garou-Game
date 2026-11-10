@@ -17,6 +17,11 @@ func _run_test() -> void:
 		push_error("Main 3D battlefield has no active camera")
 		quit(1)
 		return
+	var tactical_camera: Camera3D = game.battlefield_viewport.get_camera_3d()
+	if tactical_camera.projection != Camera3D.PROJECTION_ORTHOGONAL or tactical_camera.position.y < 4.0 or tactical_camera.size < 8.0:
+		push_error("Main battlefield camera is not using the elevated tactical overview framing")
+		quit(1)
+		return
 	if game.battlefield_viewport.get_texture() == null:
 		push_error("Main 3D battlefield has no render texture")
 		quit(1)
