@@ -171,6 +171,7 @@ func _build_ui() -> void:
 	next_button.pressed.connect(_next_level)
 	controls.add_child(next_button)
 	camera_test_button = _make_button("CAMERA A TEST", Color("#475569"))
+	camera_test_button.custom_minimum_size = Vector2(140.0, 54.0)
 	camera_test_button.pressed.connect(_open_camera_test)
 	controls.add_child(camera_test_button)
 
