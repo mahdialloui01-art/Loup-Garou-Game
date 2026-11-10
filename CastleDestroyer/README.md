@@ -38,3 +38,8 @@ This is an expanded playable foundation, not yet equivalent in content or produc
 - Debris collisions emit impact particles with a cooldown; active debris is capped at 70 and particles at 260 to bound runtime work on mobile devices.
 - CI runs both `tests/structural_integrity_test.gd` and `tests/jolt_debris_test.gd`, in addition to strict script parsing, headless startup, and Android APK export.
 - Reusable debris object pooling remains a separate optimization task; the current implementation enforces bounded counts and removes expired debris.
+
+
+## Asset sourcing
+
+Reviewed and selected CC0 sources for the castle environment and mobile interface. See [ASSET_SOURCES.md](ASSET_SOURCES.md) for pack links, license evidence, intended use, and import status. The source archives are not yet part of the repository; art integration remains an open milestone until imported resources are verified in-game.
