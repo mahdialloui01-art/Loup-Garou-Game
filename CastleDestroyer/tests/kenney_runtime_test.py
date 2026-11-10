@@ -66,12 +66,16 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             (retro / "License.txt").write_text("CC0", encoding="utf-8")
             for name in module.RETRO_MODEL_FILES:
                 (retro / "Models" / "GLB format" / name).write_bytes(b"retro-glb")
+            avramania = root / "assets" / "vendor" / "avramania-free"
+            avramania.mkdir(parents=True)
+            (avramania / "License.txt").write_text("CC0", encoding="utf-8")
+            (avramania / "mdvl_nature_boulder_01.glb").write_bytes(b"avramania-glb")
             destination = module.stage_runtime(root, castle, ui_pack, retro)
             self.assertTrue((destination / "models" / "wall.glb").is_file())
             self.assertTrue((destination / "ui" / "button_rectangle_depth_flat.png").is_file())
             self.assertFalse((root / "assets/vendor/kenney-castle-kit").exists())
             self.assertFalse((root / "assets/vendor/kenney-ui-pack").exists())
-            self.assertEqual(len(list((root / "assets/vendor").rglob("*.glb"))), 10)
+            self.assertEqual(len(list((root / "assets/vendor").rglob("*.glb"))), 19)
 
     def test_rejects_missing_model(self):
         with tempfile.TemporaryDirectory() as tmp:
