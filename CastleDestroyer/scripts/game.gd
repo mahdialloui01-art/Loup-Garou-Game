@@ -1,6 +1,7 @@
 extends Control
 
 const StructuralIntegrityGraph = preload("res://addons/castle_destruction/structural_integrity_graph.gd")
+const AudioManagerScript = preload("res://scripts/audio_manager.gd")
 
 class FallingFortBlock extends RigidBody3D:
 	signal impact(position: Vector3, strength: float)
@@ -120,10 +121,21 @@ var main_menu: Control
 var settings_panel: PanelContainer
 var game_started := false
 var camera_sensitivity := 1.0
+var music_enabled := true
+var sfx_enabled := true
+var music_volume := 0.32
+var sfx_volume := 0.78
+var audio_manager: Node
 
 func _ready() -> void:
 	randomize()
 	_load_progress()
+	audio_manager = AudioManagerScript.new()
+	audio_manager.music_enabled = music_enabled
+	audio_manager.sfx_enabled = sfx_enabled
+	audio_manager.music_volume = music_volume
+	audio_manager.sfx_volume = sfx_volume
+	add_child(audio_manager)
 	_build_3d_battlefield()
 	physics_root = Node3D.new()
 	physics_root.name = "FortPhysics"
