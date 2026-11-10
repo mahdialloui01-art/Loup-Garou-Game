@@ -75,6 +75,8 @@ jobs:
           test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
           test -x "$ANDROID_HOME/build-tools/35.0.0/zipalign"
           test -s "$HOME/.local/share/godot/export_templates/4.4.1.stable/android_debug.apk"
+      - name: Test asset importer safety
+        run: python3 -m unittest discover -s CastleDestroyer/tests -p 'asset_importer_test.py' -v
       - name: Import and validate game
         run: godot --headless --editor --path CastleDestroyer --quit
       - name: Strict GDScript parse check
