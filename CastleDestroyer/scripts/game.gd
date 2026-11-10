@@ -135,7 +135,13 @@ func _build_3d_battlefield() -> void:
 	battlefield_viewport = SubViewport.new()
 	battlefield_viewport.name = "Battlefield3DViewport"
 	var initial_size := get_viewport_rect().size
-	battlefield_viewport.size = Vector2i(maxi(roundi(initial_size.x), 1), maxi(roundi(initial_size.y), 1))
+	# Render the 3D battlefield at up to Full HD while keeping the touch/UI
+	# coordinate space unchanged. Cap the target to avoid excessive mobile VRAM.
+	var render_scale := minf(1.5, minf(1920.0 / maxf(initial_size.x, 1.0), 1080.0 / maxf(initial_size.y, 1.0)))
+	battlefield_viewport.size = Vector2i(
+		maxi(roundi(initial_size.x * render_scale), 1),
+		maxi(roundi(initial_size.y * render_scale), 1)
+	)
 	battlefield_viewport.disable_3d = false
 	battlefield_viewport.transparent_bg = false
 	battlefield_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
