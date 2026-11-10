@@ -544,14 +544,14 @@ func _apply_blast_to_debris(center: Vector2, radius: float, damage: int, incomin
 	for body in falling_blocks:
 		if not is_instance_valid(body) or body.freeze:
 			continue
-		var offset := body.global_position - center
-		var distance := offset.length()
+		var offset: Vector2 = body.global_position - center
+		var distance: float = offset.length()
 		if distance > radius:
 			continue
-		var direction := offset.normalized()
+		var direction: Vector2 = offset.normalized()
 		if direction.length_squared() < 0.01:
 			direction = Vector2.UP
-		var falloff := 1.0 - distance / radius
+		var falloff: float = 1.0 - distance / radius
 		body.apply_central_impulse(direction * base_force * falloff)
 		body.apply_torque_impulse(randf_range(-3.0, 3.0) * falloff)
 
