@@ -68,7 +68,8 @@ var sun_light: DirectionalLight3D
 var animated_flags: Array[Node3D] = []
 var camera_mode := 0
 var camera_zoom := 1.0
-var camera_pan := Vector2.ZERO
+var camera_orbit_yaw := 0.0
+var camera_orbit_pitch := 0.0
 var camera_touches: Dictionary = {}
 var previous_pinch_distance := 0.0
 var battlefield_time := 0.0
@@ -1050,8 +1051,10 @@ func _input(event: InputEvent) -> void:
 				if previous_pinch_distance > 0.0 and distance > 0.0:
 					camera_zoom = clampf(camera_zoom * previous_pinch_distance / distance, 0.62, 1.55)
 				previous_pinch_distance = distance
-				var pan_scale := main_camera.size * camera_zoom / 720.0
-				camera_pan += Vector2(-1.0, 1.0) * (new_centroid - old_centroid) * pan_scale * camera_sensitivity
+				# Two-finger drag orbits the 3D camera around the fixed battlefield.
+				var orbit_delta := new_centroid - old_centroid
+				camera_orbit_yaw -= orbit_delta.x * 0.006 * camera_sensitivity
+				camera_orbit_pitch = clampf(camera_orbit_pitch + orbit_delta.y * 0.004 * camera_sensitivity, -0.55, 0.55)
 				queue_redraw()
 			elif aiming:
 				aim_point = _screen_to_battlefield(drag.position)
@@ -1134,10 +1137,16 @@ func _animate_battlefield(delta: float) -> void:
 		elif camera_mode == 2:
 			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, 4.8, 11.5)
 			target_size = 7.2
-		target += Vector3(camera_pan.x, camera_pan.y, 0.0)
-		main_camera.position = main_camera.position.lerp(target, minf(1.0, delta * 2.8))
+		var focus := Vector3(6.4, -3.6, 0.0)
+		var base_offset := target - focus
+		var radius := base_offset.length()
+		var yaw := atan2(base_offset.x, base_offset.z) + camera_orbit_yaw
+		var pitch := asin(clampf(base_offset.y / maxf(radius, 0.001), -1.0, 1.0)) + camera_orbit_pitch
+		pitch = clampf(pitch, 0.12, 1.32)
+		var orbit_offset := Vector3(sin(yaw) * cos(pitch), sin(pitch), cos(yaw) * cos(pitch)) * radius
+		main_camera.position = main_camera.position.lerp(focus + orbit_offset, minf(1.0, delta * 2.8))
 		main_camera.size = lerpf(main_camera.size, target_size * camera_zoom, minf(1.0, delta * 2.8))
-		main_camera.look_at(Vector3(6.4 + camera_pan.x, -3.6 + camera_pan.y, 0.0), Vector3.UP)
+		main_camera.look_at(focus, Vector3.UP)
 
 func _step_projectiles(delta: float) -> void:
 	for i in range(projectiles.size() - 1, -1, -1):
