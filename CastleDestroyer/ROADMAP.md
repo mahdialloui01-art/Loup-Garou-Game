@@ -13,8 +13,11 @@
 - [ ] Validate Android export and install on physical devices
 
 ## Milestone 2 — Destruction and combat
-- [ ] Physics bodies and joints instead of simple block hit points
-- [ ] Structural stability and chain-collapse simulation
+- [x] Structural support graph and ground-connected stability evaluation
+- [x] Jolt Physics selected for the 3D physics server (Godot 4.4 built-in)
+- [x] Pre-fractured mesh-swap editor plugin foundation
+- [ ] Migrate battlefield debris and fort fragments to live 3D Jolt bodies
+- [x] Structural stability graph and cascading collapse evaluation
 - [ ] Explosive impulse, debris pooling and impact effects
 - [ ] Troop movement, pathfinding, melee/ranged combat
 - [ ] Distinct troop classes, skills, cooldowns and counters
