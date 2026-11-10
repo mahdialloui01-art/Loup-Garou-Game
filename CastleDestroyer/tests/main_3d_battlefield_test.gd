@@ -31,7 +31,7 @@ func _run_test() -> void:
 		quit(1)
 		return
 	var tactical_camera: Camera3D = game.battlefield_viewport.get_camera_3d()
-	if tactical_camera.projection != Camera3D.PROJECTION_ORTHOGONAL or tactical_camera.position.y < 4.0 or tactical_camera.size < 8.0:
+	if tactical_camera.projection != Camera3D.PROJECTION_ORTHOGONAL or tactical_camera.position.y < 7.0 or tactical_camera.size < 8.0:
 		push_error("Main battlefield camera is not using the elevated tactical overview framing")
 		quit(1)
 		return
@@ -69,6 +69,15 @@ func _run_test() -> void:
 	var world := game.battlefield_viewport.get_child(0) as Node3D
 	if world == null or world.find_child("MainBattlefieldCamera", true, false) == null:
 		push_error("Main 3D battlefield world/camera is missing")
+		quit(1)
+		return
+	if world.find_child("DistantRollingHill_00", true, false) == null:
+		push_error("Layered 3D landscape scenery was not created")
+		quit(1)
+		return
+	var environment_node := world.find_child("WorldEnvironment", true, false) as WorldEnvironment
+	if environment_node == null or environment_node.environment == null or not environment_node.environment.fog_enabled:
+		push_error("3D world atmosphere/fog settings are missing")
 		quit(1)
 		return
 	for block in game.blocks:
