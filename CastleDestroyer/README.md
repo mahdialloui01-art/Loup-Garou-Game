@@ -30,4 +30,4 @@ This is an expanded playable foundation, not yet equivalent in content or produc
 - Godot 4.4 built-in **Jolt Physics** is selected for the 3D physics server. Jolt does not replace the 2D physics server; the current 2D projectile and presentation layer remains on Godot Physics 2D.
 - The enabled **Castle Destruction Toolkit** editor plugin exposes a reusable `PreFracturedAssembly` node. Assign pre-fractured `RigidBody3D` fragment scenes to swap an intact 3D source mesh for simulated fragments.
 - Structural stability is evaluated as a ground-connected support graph. A block disconnected from the ground support graph becomes eligible for cascading collapse.
-- The current battlefield still uses its 2D presentation and 2D debris simulation. Wiring the 3D Jolt fragment assemblies into the battlefield is a separate migration stage and is not claimed complete yet.
+- The battlefield keeps its 2D drawing, aiming and projectile presentation, while fort collision bodies and falling debris now run as 3D bodies under Jolt. Each destroyed block swaps into four simulated 3D mesh shards; the editor plugin also supports authored pre-fractured fragment scenes for larger props.
