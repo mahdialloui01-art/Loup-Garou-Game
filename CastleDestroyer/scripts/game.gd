@@ -974,9 +974,10 @@ func _animate_battlefield(delta: float) -> void:
 		elif camera_mode == 2:
 			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, 4.8, 11.5)
 			target_size = 7.2
+		target += Vector3(camera_pan.x, camera_pan.y, 0.0)
 		main_camera.position = main_camera.position.lerp(target, minf(1.0, delta * 2.8))
 		main_camera.size = lerpf(main_camera.size, target_size * camera_zoom, minf(1.0, delta * 2.8))
-		main_camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
+		main_camera.look_at(Vector3(6.4 + camera_pan.x, -3.6 + camera_pan.y, 0.0), Vector3.UP)
 
 func _step_projectiles(delta: float) -> void:
 	for i in range(projectiles.size() - 1, -1, -1):
