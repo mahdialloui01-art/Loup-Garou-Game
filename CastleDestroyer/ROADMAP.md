@@ -26,6 +26,11 @@
 - [ ] Enemy fort layouts and boss encounters
 
 ## Milestone 3 — Content and progression
+- [ ] Import Kenney Castle Kit (CC0): fort walls, towers, gates and siege props
+- [ ] Import Kenney UI Pack (CC0): mobile HUD panels, buttons and states
+- [ ] Evaluate optional Medieval Voxel Assets pack; use only if style remains consistent
+- [ ] Build matching simplified collision shapes and pre-fractured variants for imported castle pieces
+- [ ] Add per-pack license files and source records before shipping
 - [ ] Campaign map, chapters and level objectives
 - [ ] 30+ original troop/defender variants
 - [ ] Weapon and troop unlock tree
