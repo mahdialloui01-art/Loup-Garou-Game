@@ -67,6 +67,7 @@ var player_cannon_node: Node3D
 var sun_light: DirectionalLight3D
 var animated_flags: Array[Node3D] = []
 var camera_mode := 0
+var camera_zoom := 1.0
 var battlefield_time := 0.0
 var floor_body: StaticBody3D
 var projectiles: Array = []
@@ -855,6 +856,17 @@ func _screen_to_battlefield(screen_position: Vector2) -> Vector2:
 	return Vector2(world_point.x * 100.0, -world_point.y * 100.0)
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventMagnifyGesture:
+		var magnify := event as InputEventMagnifyGesture
+		camera_zoom = clampf(camera_zoom / maxf(magnify.factor, 0.1), 0.62, 1.55)
+		return
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			camera_zoom = clampf(camera_zoom * 0.9, 0.62, 1.55)
+			return
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			camera_zoom = clampf(camera_zoom / 0.9, 0.62, 1.55)
+			return
 	if game_over or paused:
 		return
 	if event is InputEventScreenTouch:
@@ -931,7 +943,7 @@ func _animate_battlefield(delta: float) -> void:
 			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, 4.8, 11.5)
 			target_size = 7.2
 		main_camera.position = main_camera.position.lerp(target, minf(1.0, delta * 2.8))
-		main_camera.size = lerpf(main_camera.size, target_size, minf(1.0, delta * 2.8))
+		main_camera.size = lerpf(main_camera.size, target_size * camera_zoom, minf(1.0, delta * 2.8))
 		main_camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 
 func _step_projectiles(delta: float) -> void:
