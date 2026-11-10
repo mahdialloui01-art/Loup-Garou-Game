@@ -246,13 +246,10 @@ func _create_physics_floor() -> void:
 	physics_root.add_child(floor_body)
 
 func _clear_physics_castle() -> void:
-	for body in falling_blocks:
-		if is_instance_valid(body):
-			body.queue_free()
-	falling_blocks.clear()
 	for child in physics_root.get_children():
 		if child != floor_body:
 			child.free()
+	falling_blocks.clear()
 
 func _make_block(rect: Rect2, team: String, hp: int, max_hp: int, kind: String) -> Dictionary:
 	var body := StaticBody2D.new()
