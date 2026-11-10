@@ -79,7 +79,7 @@ var next_button: Button
 func _ready() -> void:
 	randomize()
 	_load_progress()
-	physics_root = Node2D.new()
+	physics_root = Node3D.new()
 	physics_root.name = "FortPhysics"
 	add_child(physics_root)
 	_create_physics_floor()
