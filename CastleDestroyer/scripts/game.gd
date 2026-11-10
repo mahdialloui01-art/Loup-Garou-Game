@@ -182,8 +182,9 @@ func _build_3d_battlefield() -> void:
 	var camera := Camera3D.new()
 	camera.name = "MainBattlefieldCamera"
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 7.2
-	camera.position = Vector3(6.4, -3.6, 18.0)
+	# Tactical elevated 3D overview: the camera looks down across the full siege lane.
+	camera.size = 8.4
+	camera.position = Vector3(6.4, 5.8, 12.2)
 	camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
 	camera.current = true
 	world.add_child(camera)
@@ -451,7 +452,7 @@ func _build_ui() -> void:
 	next_button = _make_button("NEXT LEVEL", Color("#166534"))
 	next_button.pressed.connect(_next_level)
 	controls.add_child(next_button)
-	camera_test_button = _make_button("CAMERA A TEST", Color("#475569"))
+	camera_test_button = _make_button("CAMERA 3D • OVERVIEW", Color("#475569"))
 	camera_test_button.custom_minimum_size = Vector2(140.0, 54.0)
 	camera_test_button.pressed.connect(_open_camera_test)
 	controls.add_child(camera_test_button)
@@ -695,7 +696,7 @@ func _cleanup_falling_blocks() -> void:
 func _open_camera_test() -> void:
 	# The camera test button cycles real camera rigs in the live 3D battle.
 	camera_mode = (camera_mode + 1) % 3
-	var labels := ["BATTLEFIELD OVERVIEW", "PLAYER FORT CLOSE-UP", "CINEMATIC SIEGE VIEW"]
+	var labels := ["TACTICAL 3D OVERVIEW", "PLAYER FORT CLOSE-UP", "CINEMATIC 3D VIEW"]
 	message = "CAMERA: " + labels[camera_mode]
 	_update_hud()
 
@@ -921,14 +922,14 @@ func _animate_battlefield(delta: float) -> void:
 	if is_instance_valid(sun_light):
 		sun_light.rotation_degrees.z = -32.0 + sin(battlefield_time * 0.12) * 3.0
 	if is_instance_valid(main_camera):
-		var target := Vector3(6.4, -3.6, 18.0)
-		var target_size := 7.2
+		var target := Vector3(6.4, 5.8, 12.2)
+		var target_size := 8.4
 		if camera_mode == 1:
-			target = Vector3(3.2, -4.3, 13.0)
+			target = Vector3(3.2, 3.6, 8.0)
 			target_size = 5.4
 		elif camera_mode == 2:
-			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, -3.0, 15.0)
-			target_size = 6.2
+			target = Vector3(6.4 + sin(battlefield_time * 0.22) * 0.75, 4.8, 11.5)
+			target_size = 7.2
 		main_camera.position = main_camera.position.lerp(target, minf(1.0, delta * 2.8))
 		main_camera.size = lerpf(main_camera.size, target_size, minf(1.0, delta * 2.8))
 		main_camera.look_at(Vector3(6.4, -3.6, 0.0), Vector3.UP)
