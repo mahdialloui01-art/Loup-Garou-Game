@@ -93,6 +93,7 @@ var weapon_button: Button
 var fire_button: Button
 var upgrade_button: Button
 var next_button: Button
+var camera_test_button: Button
 
 func _ready() -> void:
 	randomize()
@@ -169,6 +170,9 @@ func _build_ui() -> void:
 	next_button = _make_button("NEXT LEVEL", Color("#166534"))
 	next_button.pressed.connect(_next_level)
 	controls.add_child(next_button)
+	camera_test_button = _make_button("CAMERA A TEST", Color("#475569"))
+	camera_test_button.pressed.connect(_open_camera_test)
+	controls.add_child(camera_test_button)
 
 func _make_label(value: String, font_size: int) -> Label:
 	var label := Label.new()
@@ -344,6 +348,9 @@ func _cleanup_falling_blocks() -> void:
 			if is_instance_valid(body):
 				body.queue_free()
 			falling_blocks.remove_at(i)
+
+func _open_camera_test() -> void:
+	get_tree().change_scene_to_file("res://scenes/camera_a_preview.tscn")
 
 func _cycle_weapon() -> void:
 	weapon_index = (weapon_index + 1) % WEAPONS.size()
