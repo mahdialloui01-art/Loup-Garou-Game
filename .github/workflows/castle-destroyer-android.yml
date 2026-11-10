@@ -30,7 +30,7 @@ jobs:
         with:
           packages: 'platform-tools'
       - name: Install Android SDK components
-        run: sdkmanager "cmdline-tools;latest" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+        run: sdkmanager "cmdline-tools;latest" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
       - name: Install Godot 4.4.1
         uses: chickensoft-games/setup-godot@v2
         with:
@@ -70,7 +70,7 @@ jobs:
         run: |
           mkdir -p build
           cp "$HOME/.android/debug.keystore" "$RUNNER_TEMP/debug.keystore"
-          godot --headless --path CastleDestroyer --export-debug "Android" build/CastleDestroyer-debug.apk
+          godot --headless --verbose --path CastleDestroyer --export-debug "Android" build/CastleDestroyer-debug.apk
           test -s build/CastleDestroyer-debug.apk
       - uses: actions/upload-artifact@v4
         with:
