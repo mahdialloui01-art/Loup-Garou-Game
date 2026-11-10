@@ -63,6 +63,7 @@ var falling_blocks: Array = []
 var physics_root: Node3D
 var battlefield_viewport: SubViewport
 var main_camera: Camera3D
+var player_cannon_node: Node3D
 var sun_light: DirectionalLight3D
 var animated_flags: Array[Node3D] = []
 var camera_mode := 0
@@ -187,6 +188,7 @@ func _build_3d_battlefield() -> void:
 	world.add_child(camera)
 	main_camera = camera
 	_add_3d_cannon(world, Vector3(2.05, -5.05, 0.28), Color("#c28a45"), false)
+	player_cannon_node = world.get_node_or_null("3DCannon")
 	_add_3d_cannon(world, Vector3(10.75, -5.05, 0.28), Color("#657b9b"), true)
 	_add_3d_soldiers(world, Vector3(0.72, -5.42, 0.24), Color("#2563a6"))
 	_add_3d_soldiers(world, Vector3(11.55, -5.42, 0.24), Color("#b91c1c"))
@@ -315,6 +317,9 @@ func _add_3d_cannon(parent: Node3D, pos: Vector3, tint: Color, mirrored: bool) -
 	cannon.name = "3DCannon"
 	cannon.position = pos
 	parent.add_child(cannon)
+	if not mirrored:
+		cannon.name = "Player3DCannon"
+		player_cannon_node = cannon
 	var base := MeshInstance3D.new()
 	var base_mesh := CylinderMesh.new()
 	base_mesh.top_radius = 0.24
@@ -697,6 +702,32 @@ func _cycle_weapon() -> void:
 	weapon_index = (weapon_index + 1) % WEAPONS.size()
 	_update_hud()
 
+func _spawn_projectile_visual(kind: String, team: String) -> MeshInstance3D:
+	var world := battlefield_viewport.get_child(0) as Node3D
+	if world == null:
+		return null
+	var visual := MeshInstance3D.new()
+	visual.name = "3DProjectile_" + kind
+	var sphere := SphereMesh.new()
+	var radius := 0.075 if kind == "stone" else 0.105
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	var surface := StandardMaterial3D.new()
+	surface.albedo_color = Color("#334155") if team == "player" else Color("#b91c1c")
+	if kind == "fire":
+		surface.albedo_color = Color("#ff6b24")
+		surface.emission_enabled = true
+		surface.emission = Color("#ff4b12")
+		surface.emission_energy_multiplier = 1.8
+	elif kind == "bomb":
+		surface.albedo_color = Color("#292929")
+		surface.metallic = 0.55
+	surface.roughness = 0.58
+	sphere.material = surface
+	visual.mesh = sphere
+	world.add_child(visual)
+	return visual
+
 func _fire_selected() -> void:
 	var weapon: Dictionary = WEAPONS[weapon_index]
 	var weapon_id: String = weapon["id"]
@@ -716,8 +747,15 @@ func _fire_selected() -> void:
 	direction.y = clampf(direction.y, -1.0, -0.08)
 	direction = direction.normalized()
 	var power := float(weapon["speed"]) * (1.0 + float(cannon_level - 1) * 0.045)
+	var launch_position := PLAYER_CANNON + Vector2(15.0, -12.0)
+	var projectile_visual := _spawn_projectile_visual(weapon_id, "player")
+	if is_instance_valid(projectile_visual):
+		projectile_visual.position = Vector3(launch_position.x * 0.01, -launch_position.y * 0.01, 0.0)
+	if is_instance_valid(player_cannon_node):
+		player_cannon_node.rotation.z = atan2(-direction.y, direction.x) - deg_to_rad(55.0)
 	projectiles.append({
-		"pos": PLAYER_CANNON + Vector2(15.0, -12.0),
+		"pos": launch_position,
+		"visual": projectile_visual,
 		"vel": direction * power,
 		"power": int(weapon["damage"]),
 		"team": "player",
@@ -733,8 +771,13 @@ func _enemy_fire() -> void:
 		return
 	var target_x := 180.0 + randf_range(-55.0, 55.0)
 	var direction := (Vector2(target_x, 320.0) - ENEMY_CANNON).normalized()
+	var launch_position := ENEMY_CANNON + Vector2(-15.0, -12.0)
+	var projectile_visual := _spawn_projectile_visual("stone", "enemy")
+	if is_instance_valid(projectile_visual):
+		projectile_visual.position = Vector3(launch_position.x * 0.01, -launch_position.y * 0.01, 0.0)
 	projectiles.append({
-		"pos": ENEMY_CANNON + Vector2(-15.0, -12.0),
+		"pos": launch_position,
+		"visual": projectile_visual,
 		"vel": direction * randf_range(14.0, 17.0),
 		"power": 1 + int(level / 5),
 		"team": "enemy",
@@ -792,29 +835,47 @@ func _toggle_pause() -> void:
 	message = "BATTLE PAUSED" if paused else "BATTLE RESUMED"
 	_update_hud()
 
+func _screen_to_battlefield(screen_position: Vector2) -> Vector2:
+	if not is_instance_valid(main_camera) or not is_instance_valid(battlefield_viewport):
+		return screen_position
+	var control_size := get_viewport_rect().size
+	if control_size.x <= 0.0 or control_size.y <= 0.0:
+		return screen_position
+	var viewport_position := screen_position * Vector2(1280.0, 720.0) / control_size
+	var ray_origin := main_camera.project_ray_origin(viewport_position)
+	var ray_direction := main_camera.project_ray_normal(viewport_position)
+	if absf(ray_direction.z) < 0.0001:
+		return screen_position
+	var distance := -ray_origin.z / ray_direction.z
+	if distance < 0.0:
+		return screen_position
+	var world_point := ray_origin + ray_direction * distance
+	return Vector2(world_point.x * 100.0, -world_point.y * 100.0)
+
 func _input(event: InputEvent) -> void:
 	if game_over or paused:
 		return
 	if event is InputEventScreenTouch:
 		var touch := event as InputEventScreenTouch
 		if touch.pressed:
-			_begin_aim(touch.position)
+			_begin_aim(_screen_to_battlefield(touch.position))
 		else:
-			_end_aim(touch.position)
+			_end_aim(_screen_to_battlefield(touch.position))
 	elif event is InputEventScreenDrag and aiming:
-		aim_point = (event as InputEventScreenDrag).position
+		aim_point = _screen_to_battlefield((event as InputEventScreenDrag).position)
 		queue_redraw()
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			_begin_aim(event.position)
+			_begin_aim(_screen_to_battlefield(event.position))
 		else:
-			_end_aim(event.position)
+			_end_aim(_screen_to_battlefield(event.position))
 	elif event is InputEventMouseMotion and aiming and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-		aim_point = event.position
+		aim_point = _screen_to_battlefield(event.position)
 		queue_redraw()
 
 func _begin_aim(pos: Vector2) -> void:
-	if pos.x < 390.0 and pos.y > 160.0 and pos.y < 590.0:
+	var cannon_distance := pos.distance_to(PLAYER_CANNON)
+	if cannon_distance < 175.0 and pos.x < 430.0 and pos.y > 300.0 and pos.y < 610.0:
 		aiming = true
 		aim_origin = PLAYER_CANNON
 		aim_point = pos
@@ -879,6 +940,9 @@ func _step_projectiles(delta: float) -> void:
 		pos += vel * delta * 60.0
 		shot["pos"] = pos
 		shot["vel"] = vel
+		var projectile_visual: MeshInstance3D = shot.get("visual")
+		if is_instance_valid(projectile_visual):
+			projectile_visual.position = Vector3(pos.x * 0.01, -pos.y * 0.01, 0.0)
 		var hit_index := -1
 		for j in range(blocks.size()):
 			var block: Dictionary = blocks[j]
@@ -890,8 +954,14 @@ func _step_projectiles(delta: float) -> void:
 				break
 		if hit_index >= 0:
 			_explode(pos, shot, hit_index)
+			var hit_visual: MeshInstance3D = shot.get("visual")
+			if is_instance_valid(hit_visual):
+				hit_visual.queue_free()
 			projectiles.remove_at(i)
 		elif pos.x < -40.0 or pos.x > 1320.0 or pos.y > 620.0 or pos.y < -50.0:
+			var expired_visual: MeshInstance3D = shot.get("visual")
+			if is_instance_valid(expired_visual):
+				expired_visual.queue_free()
 			projectiles.remove_at(i)
 		else:
 			projectiles[i] = shot
@@ -1018,13 +1088,7 @@ func _draw() -> void:
 		draw_texture_rect(battlefield_viewport.get_texture(), Rect2(Vector2.ZERO, size), false)
 	else:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("#83c9eb"))
-	# Only projectiles and aiming guides remain 2D HUD overlays.
-	for shot in projectiles:
-		var color := Color("#ed563b") if shot["team"] == "enemy" else Color("#27384b")
-		if shot["kind"] == "fire":
-			color = Color("#ff762e")
-		draw_circle(shot["pos"], float(shot["radius"]), color)
-		draw_circle(shot["pos"] + Vector2(-2, -2), float(shot["radius"]) * 0.35, Color("#f8d58a"))
+	# Projectile meshes are rendered in the live 3D battlefield viewport.
 	for particle in particles:
 		draw_rect(Rect2(particle["pos"], Vector2.ONE * float(particle["size"])), particle["color"])
 	if aiming:
