@@ -29,9 +29,9 @@ class ImporterSafetyTests(unittest.TestCase):
             archive = root / "castle.zip"
             destination_root = root / "outside-source"
             with zipfile.ZipFile(archive, "w") as z:
-                z.writestr("CastleKit/License.txt", "Creative Commons Zero (CC0)")
-                z.writestr("CastleKit/Models/GLB format/wall.glb", b"glb-data")
-                z.writestr("CastleKit/Models/FBX format/wall.fbx", b"fbx-data")
+                z.writestr("License.txt", "Creative Commons Zero (CC0)")
+                z.writestr("Models/GLB format/wall.glb", b"glb-data")
+                z.writestr("Models/FBX format/wall.fbx", b"fbx-data")
             destination = module.import_pack("castle", archive, destination_root)
             self.assertEqual(destination.parent, destination_root.resolve())
             self.assertTrue((destination / "Models/FBX format/wall.fbx").is_file())
