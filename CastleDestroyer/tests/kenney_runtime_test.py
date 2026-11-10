@@ -11,22 +11,25 @@ spec.loader.exec_module(module)
 
 
 class KenneyRuntimeStageTests(unittest.TestCase):
-    def _make_sources(self, root: Path) -> None:
-        vendor = root / "assets" / "vendor"
-        models = vendor / "kenney-castle-kit" / "Models" / "GLB format"
-        ui = vendor / "kenney-ui-pack" / "PNG" / "Blue" / "Default"
+    def _make_sources(self, root: Path, inside_project: bool = True):
+        vendor = root / "assets" / "vendor" if inside_project else root / "downloaded_sources"
+        castle = vendor / "kenney-castle-kit"
+        ui_pack = vendor / "kenney-ui-pack"
+        models = castle / "Models" / "GLB format"
+        ui = ui_pack / "PNG" / "Blue" / "Default"
         models.mkdir(parents=True)
         ui.mkdir(parents=True)
-        (vendor / "kenney-castle-kit" / "License.txt").write_text(
+        (castle / "License.txt").write_text(
             "License: Creative Commons Zero (CC0)", encoding="utf-8"
         )
-        (vendor / "kenney-ui-pack" / "License.txt").write_text(
+        (ui_pack / "License.txt").write_text(
             "License: Creative Commons Zero (CC0)", encoding="utf-8"
         )
         for name in module.MODEL_FILES:
             (models / name).write_bytes(b"glb-test")
         for name in module.UI_FILES:
             (ui / name).write_bytes(b"png-test")
+        return castle, ui_pack
 
     def test_stages_models_ui_and_both_licenses(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -39,6 +42,18 @@ class KenneyRuntimeStageTests(unittest.TestCase):
             self.assertTrue((destination / "licenses" / "ui-pack-License.txt").is_file())
             metadata = json.loads((destination / "SOURCE_METADATA.json").read_text())
             self.assertEqual(metadata["license"], "CC0 1.0")
+
+    def test_stages_from_external_sources_without_copying_full_packs_into_project(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "godot-project"
+            root.mkdir()
+            castle, ui_pack = self._make_sources(Path(tmp), inside_project=False)
+            destination = module.stage_runtime(root, castle, ui_pack)
+            self.assertTrue((destination / "models" / "wall.glb").is_file())
+            self.assertTrue((destination / "ui" / "button_rectangle_depth_flat.png").is_file())
+            self.assertFalse((root / "assets/vendor/kenney-castle-kit").exists())
+            self.assertFalse((root / "assets/vendor/kenney-ui-pack").exists())
+            self.assertEqual(len(list((root / "assets/vendor").rglob("*.glb"))), 10)
 
     def test_rejects_missing_model(self):
         with tempfile.TemporaryDirectory() as tmp:
